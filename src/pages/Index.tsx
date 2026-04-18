@@ -30,6 +30,7 @@ const games = [
   { id: 7, name: "Краш", category: "Краш", icon: "TrendingUp", badge: "HOT", color: "#FF4D6D", players: 788 },
   { id: 8, name: "Кейсы", category: "Кейсы", icon: "Package", badge: "NEW", color: "#A855F7", players: 543 },
   { id: 9, name: "Дайс", category: "Кости", icon: "Dice6", badge: null, color: "#F59E0B", players: 312 },
+  { id: 10, name: "Кено", category: "Лотерея", icon: "Hash", badge: "NEW", color: "#06B6D4", players: 198 },
 ];
 
 interface CaseItem {
@@ -545,6 +546,81 @@ export default function Index() {
       if (won) setBalance(b => b + profit);
       setDiceHistory(h => [{ roll, won, profit: won ? `+${profit.toLocaleString("ru-RU")} ₽` : `-${Number(diceBet).toLocaleString("ru-RU")} ₽` }, ...h.slice(0, 9)]);
     }, 900);
+  };
+
+  // Keno game state
+  const [kenoBet, setKenoBet] = useState("200");
+  const [kenoSelected, setKenoSelected] = useState<number[]>([]);
+  const [kenoDrawn, setKenoDrawn] = useState<number[]>([]);
+  const [kenoHits, setKenoHits] = useState<number[]>([]);
+  const [kenoRunning, setKenoRunning] = useState(false);
+  const [kenoResult, setKenoResult] = useState<{ hits: number; win: number } | null>(null);
+
+  const KENO_PAYTABLE: Record<number, Record<number, number>> = {
+    1:  { 1: 3 },
+    2:  { 1: 1, 2: 9 },
+    3:  { 2: 3, 3: 25 },
+    4:  { 2: 2, 3: 8, 4: 60 },
+    5:  { 2: 1, 3: 5, 4: 20, 5: 200 },
+    6:  { 3: 3, 4: 10, 5: 50, 6: 500 },
+    7:  { 3: 2, 4: 6, 5: 20, 6: 100, 7: 1000 },
+    8:  { 4: 4, 5: 12, 6: 40, 7: 200, 8: 2000 },
+    9:  { 4: 3, 5: 8, 6: 20, 7: 80, 8: 500, 9: 5000 },
+    10: { 5: 5, 6: 12, 7: 30, 8: 100, 9: 600, 10: 10000 },
+  };
+
+  const kenoMultiplier = (() => {
+    const count = kenoSelected.length;
+    if (!count || !KENO_PAYTABLE[count]) return null;
+    return KENO_PAYTABLE[count];
+  })();
+
+  const toggleKenoNum = (n: number) => {
+    if (kenoRunning) return;
+    setKenoSelected(prev =>
+      prev.includes(n) ? prev.filter(x => x !== n) : prev.length < 10 ? [...prev, n] : prev
+    );
+    setKenoDrawn([]);
+    setKenoHits([]);
+    setKenoResult(null);
+  };
+
+  const playKeno = () => {
+    if (kenoRunning || kenoSelected.length < 1 || balance < Number(kenoBet)) return;
+    setBalance(b => b - Number(kenoBet));
+    setKenoRunning(true);
+    setKenoDrawn([]);
+    setKenoHits([]);
+    setKenoResult(null);
+
+    // Draw 20 unique numbers 1-80
+    const pool = Array.from({ length: 80 }, (_, i) => i + 1);
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    const drawn = pool.slice(0, 20);
+    const hits = drawn.filter(n => kenoSelected.includes(n));
+
+    // Animate drawing one by one
+    let i = 0;
+    const interval = setInterval(() => {
+      setKenoDrawn(prev => [...prev, drawn[i]]);
+      if (kenoSelected.includes(drawn[i])) {
+        setKenoHits(prev => [...prev, drawn[i]]);
+      }
+      i++;
+      if (i >= 20) {
+        clearInterval(interval);
+        const hitCount = hits.length;
+        const count = kenoSelected.length;
+        const mult = KENO_PAYTABLE[count]?.[hitCount] ?? 0;
+        const win = Math.floor(Number(kenoBet) * mult);
+        if (win > 0) setBalance(b => b + win);
+        setKenoResult({ hits: hitCount, win });
+        setKenoRunning(false);
+      }
+    }, 120);
   };
 
   const [activeTournament, setActiveTournament] = useState<number | null>(null);
@@ -1182,7 +1258,126 @@ export default function Index() {
                   </div>
                 )}
 
-                {!["Слоты: Удача", "Слоты: Космос", "Рулетка", "Краш", "Кейсы", "Дайс"].includes(activeGame) && (
+                {activeGame === "Кено" && (
+                  <div style={{ maxWidth: 620, margin: "0 auto" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 6 }}>
+                      <h2 className="font-display" style={{ fontSize: 24, color: "#fff" }}>КЕНО</h2>
+                      <span style={{ fontSize: 10, background: "rgba(6,182,212,0.15)", color: "#06B6D4", border: "1px solid rgba(6,182,212,0.3)", padding: "2px 8px", borderRadius: 999, fontWeight: 600 }}>NEW</span>
+                    </div>
+                    <p style={{ color: "#6B7A8D", fontSize: 13, marginBottom: 20 }}>Выбери от 1 до 10 чисел — система вытянет 20. Чем больше совпадений, тем выше выигрыш</p>
+
+                    {/* Stats bar */}
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 20 }}>
+                      {[
+                        { label: "Выбрано", value: `${kenoSelected.length} / 10`, color: kenoSelected.length > 0 ? "#06B6D4" : "#6B7A8D" },
+                        { label: "Угадано", value: kenoResult ? `${kenoResult.hits} из ${kenoSelected.length}` : "—", color: kenoResult ? (kenoResult.hits > 0 ? "#2ECC71" : "#E74C3C") : "#6B7A8D" },
+                        { label: "Выигрыш", value: kenoResult ? (kenoResult.win > 0 ? `+${kenoResult.win.toLocaleString("ru-RU")} ₽` : "0 ₽") : "—", color: kenoResult?.win ? "#2ECC71" : "#6B7A8D" },
+                      ].map(s => (
+                        <div key={s.label} style={{ background: "#0D1117", border: "1px solid #1C2532", borderRadius: 10, padding: "12px 14px", textAlign: "center" }}>
+                          <div style={{ fontSize: 10, color: "#3D4D60", letterSpacing: "0.08em", marginBottom: 4 }}>{s.label.toUpperCase()}</div>
+                          <div className="font-display" style={{ fontSize: 16, color: s.color }}>{s.value}</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Number grid 1-80 */}
+                    <div style={{ background: "#080C10", border: "1px solid #1C2532", borderRadius: 16, padding: 16, marginBottom: 16 }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(10, 1fr)", gap: 5 }}>
+                        {Array.from({ length: 80 }, (_, i) => i + 1).map(n => {
+                          const isSelected = kenoSelected.includes(n);
+                          const isDrawn = kenoDrawn.includes(n);
+                          const isHit = kenoHits.includes(n);
+                          return (
+                            <button
+                              key={n}
+                              onClick={() => toggleKenoNum(n)}
+                              style={{
+                                aspectRatio: "1",
+                                borderRadius: 8,
+                                border: `1px solid ${isHit ? "#06B6D4" : isDrawn && !isSelected ? "rgba(255,255,255,0.08)" : isSelected ? "rgba(6,182,212,0.5)" : "#1C2532"}`,
+                                background: isHit ? "rgba(6,182,212,0.25)" : isDrawn && !isSelected ? "rgba(255,255,255,0.04)" : isSelected ? "rgba(6,182,212,0.15)" : "#141B24",
+                                color: isHit ? "#06B6D4" : isDrawn && !isSelected ? "#3D4D60" : isSelected ? "#06B6D4" : "#6B7A8D",
+                                fontSize: 11,
+                                fontFamily: "Oswald, sans-serif",
+                                cursor: kenoRunning ? "default" : "pointer",
+                                transition: "all 0.15s",
+                                fontWeight: isSelected || isHit ? 700 : 400,
+                                transform: isHit ? "scale(1.1)" : "scale(1)",
+                                boxShadow: isHit ? "0 0 10px rgba(6,182,212,0.4)" : "none",
+                                padding: 0,
+                              }}
+                            >
+                              {n}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Paytable */}
+                    {kenoSelected.length > 0 && kenoMultiplier && (
+                      <div style={{ background: "#0D1117", border: "1px solid #1C2532", borderRadius: 12, padding: "14px 16px", marginBottom: 16 }}>
+                        <div style={{ fontSize: 11, color: "#6B7A8D", letterSpacing: "0.08em", marginBottom: 10, fontFamily: "Oswald, sans-serif" }}>ТАБЛИЦА ВЫПЛАТ ДЛЯ {kenoSelected.length} ЧИСЕЛ</div>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" as const }}>
+                          {Object.entries(kenoMultiplier).map(([hits, mult]) => (
+                            <div key={hits} style={{ background: "#141B24", border: `1px solid ${kenoResult?.hits === Number(hits) ? "#06B6D4" : "#1C2532"}`, borderRadius: 8, padding: "6px 12px", textAlign: "center", minWidth: 60 }}>
+                              <div style={{ fontSize: 10, color: "#6B7A8D", marginBottom: 2 }}>{hits} попад.</div>
+                              <div className="font-display" style={{ fontSize: 14, color: "#F0C040" }}>×{mult}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Bet + controls */}
+                    <div style={{ background: "#0D1117", border: "1px solid #1C2532", borderRadius: 14, padding: 20 }}>
+                      <div style={{ display: "flex", gap: 10, marginBottom: 14, alignItems: "flex-end" }}>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ fontSize: 12, color: "#6B7A8D", marginBottom: 6, display: "block", letterSpacing: "0.06em" }}>СТАВКА (₽)</label>
+                          <input className="input-dark" value={kenoBet} onChange={e => setKenoBet(e.target.value)} disabled={kenoRunning} type="number" style={{ fontSize: 18, fontFamily: "Oswald, sans-serif", color: "#F0C040" }} />
+                        </div>
+                        <button onClick={() => { setKenoSelected([]); setKenoDrawn([]); setKenoHits([]); setKenoResult(null); }} disabled={kenoRunning} style={{ background: "#141B24", border: "1px solid #1C2532", borderRadius: 8, padding: "10px 16px", color: "#6B7A8D", fontSize: 13, cursor: "pointer" }}>
+                          Сброс
+                        </button>
+                        <button onClick={() => {
+                          const pool = Array.from({ length: 80 }, (_, i) => i + 1);
+                          for (let i = pool.length - 1; i > 0; i--) {
+                            const j = Math.floor(Math.random() * (i + 1));
+                            [pool[i], pool[j]] = [pool[j], pool[i]];
+                          }
+                          setKenoSelected(pool.slice(0, 10));
+                          setKenoDrawn([]); setKenoHits([]); setKenoResult(null);
+                        }} disabled={kenoRunning} style={{ background: "#141B24", border: "1px solid #1C2532", borderRadius: 8, padding: "10px 16px", color: "#6B7A8D", fontSize: 13, cursor: "pointer" }}>
+                          Случайно
+                        </button>
+                      </div>
+
+                      <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
+                        {["100", "200", "500", "1000"].map(a => (
+                          <button key={a} disabled={kenoRunning} onClick={() => setKenoBet(a)} style={{ flex: 1, background: kenoBet === a ? "rgba(6,182,212,0.12)" : "#141B24", border: `1px solid ${kenoBet === a ? "#06B6D4" : "#1C2532"}`, borderRadius: 8, padding: "8px 0", color: kenoBet === a ? "#06B6D4" : "#6B7A8D", fontSize: 12, cursor: "pointer", fontFamily: "Oswald, sans-serif" }}>
+                            {Number(a).toLocaleString("ru-RU")}
+                          </button>
+                        ))}
+                      </div>
+
+                      <button
+                        className="gold-btn"
+                        onClick={playKeno}
+                        disabled={kenoRunning || kenoSelected.length < 1 || balance < Number(kenoBet)}
+                        style={{ width: "100%", padding: 14, border: "none", borderRadius: 10, cursor: (kenoRunning || kenoSelected.length < 1 || balance < Number(kenoBet)) ? "not-allowed" : "pointer", fontSize: 16, fontFamily: "Oswald, sans-serif", letterSpacing: "0.06em", opacity: (kenoSelected.length < 1 || balance < Number(kenoBet)) ? 0.5 : 1 }}
+                      >
+                        {kenoRunning ? "ТЯНЕМ ЧИСЛА..." : kenoSelected.length < 1 ? "ВЫБЕРИ ЧИСЛА" : `🎯 ИГРАТЬ — ${Number(kenoBet).toLocaleString("ru-RU")} ₽`}
+                      </button>
+
+                      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 14, paddingTop: 14, borderTop: "1px solid #1C2532" }}>
+                        <span style={{ fontSize: 12, color: "#6B7A8D" }}>Баланс</span>
+                        <span className="font-display" style={{ fontSize: 14, color: "#F0C040" }}>{balance.toLocaleString("ru-RU")} ₽</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {!["Слоты: Удача", "Слоты: Космос", "Рулетка", "Краш", "Кейсы", "Дайс", "Кено"].includes(activeGame) && (
                   <div style={{ maxWidth: 420, margin: "0 auto", textAlign: "center" }}>
                     <h2 className="font-display" style={{ fontSize: 24, color: "#fff", marginBottom: 8 }}>{activeGame.toUpperCase()}</h2>
                     <div style={{ background: "#0D1117", border: "1px solid #1C2532", borderRadius: 16, padding: "60px 24px" }}>
