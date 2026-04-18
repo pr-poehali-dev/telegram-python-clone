@@ -27,6 +27,7 @@ const games = [
   { id: 4, name: "Слоты: Удача", category: "Слоты", icon: "Zap", badge: "HOT", color: "#E67E22", players: 1023 },
   { id: 5, name: "Баккара", category: "Стол", icon: "Diamond", badge: null, color: "#E74C3C", players: 97 },
   { id: 6, name: "Слоты: Космос", category: "Слоты", icon: "Star", badge: "LIVE", color: "#1ABC9C", players: 567 },
+  { id: 7, name: "Краш", category: "Краш", icon: "TrendingUp", badge: "HOT", color: "#FF4D6D", players: 788 },
 ];
 
 const tournaments = [
@@ -339,6 +340,56 @@ export default function Index() {
     }, 3000);
   };
 
+  // Crash game state
+  const [crashBet, setCrashBet] = useState("500");
+  const [crashMultiplier, setCrashMultiplier] = useState(1.00);
+  const [crashState, setCrashState] = useState<"idle" | "running" | "cashed" | "crashed">("idle");
+  const [crashCashout, setCrashCashout] = useState<number | null>(null);
+  const [crashHistory, setCrashHistory] = useState<number[]>([14.2, 1.3, 3.8, 22.1, 1.01, 5.6, 2.2, 8.8, 1.5, 42.0]);
+  const [crashPoints, setCrashPoints] = useState<{x: number; y: number}[]>([]);
+  const crashRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const crashStartRef = useRef<number>(0);
+
+  const startCrash = () => {
+    if (crashState === "running" || balance < Number(crashBet)) return;
+    setBalance(b => b - Number(crashBet));
+    setCrashState("running");
+    setCrashCashout(null);
+    setCrashMultiplier(1.00);
+    setCrashPoints([{ x: 0, y: 0 }]);
+    crashStartRef.current = Date.now();
+    const crashAt = Math.random() < 0.4 ? 1 + Math.random() * 1.5 : 1.5 + Math.random() * 18;
+    let elapsed = 0;
+    crashRef.current = setInterval(() => {
+      elapsed = (Date.now() - crashStartRef.current) / 1000;
+      const m = Math.pow(Math.E, elapsed * 0.22);
+      const rounded = Math.floor(m * 100) / 100;
+      setCrashMultiplier(rounded);
+      setCrashPoints(prev => [...prev, { x: elapsed, y: rounded }]);
+      if (rounded >= crashAt) {
+        clearInterval(crashRef.current!);
+        setCrashState("crashed");
+        setCrashHistory(h => [Math.floor(crashAt * 100) / 100, ...h.slice(0, 9)]);
+      }
+    }, 80);
+  };
+
+  const cashOutCrash = () => {
+    if (crashState !== "running") return;
+    clearInterval(crashRef.current!);
+    const win = Math.floor(Number(crashBet) * crashMultiplier);
+    setCrashCashout(crashMultiplier);
+    setBalance(b => b + win);
+    setCrashState("cashed");
+  };
+
+  const resetCrash = () => {
+    setCrashState("idle");
+    setCrashMultiplier(1.00);
+    setCrashPoints([]);
+    setCrashCashout(null);
+  };
+
   const [activeTournament, setActiveTournament] = useState<number | null>(null);
   const [bonusFilter, setBonusFilter] = useState<"all" | "available" | "active" | "used">("all");
   const [activatedBonuses, setActivatedBonuses] = useState<number[]>([]);
@@ -549,7 +600,147 @@ export default function Index() {
                   </div>
                 )}
 
-                {!["Слоты: Удача", "Слоты: Космос", "Рулетка"].includes(activeGame) && (
+                {activeGame === "Краш" && (
+                  <div style={{ maxWidth: 560, margin: "0 auto" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
+                      <h2 className="font-display" style={{ fontSize: 24, color: "#fff" }}>КРАШ</h2>
+                      <span className="badge-hot">HOT</span>
+                    </div>
+                    <p style={{ color: "#6B7A8D", marginBottom: 20, fontSize: 13 }}>Заберите выигрыш до того, как ракета взорвётся</p>
+
+                    {/* History chips */}
+                    <div style={{ display: "flex", gap: 6, marginBottom: 16, flexWrap: "wrap" as const }}>
+                      {crashHistory.map((h, i) => (
+                        <span key={i} style={{ fontSize: 12, fontFamily: "Oswald, sans-serif", padding: "3px 10px", borderRadius: 6, background: h < 1.5 ? "rgba(231,76,60,0.15)" : h < 3 ? "rgba(212,160,23,0.12)" : "rgba(46,204,113,0.12)", color: h < 1.5 ? "#E74C3C" : h < 3 ? "#F0C040" : "#2ECC71", border: `1px solid ${h < 1.5 ? "rgba(231,76,60,0.3)" : h < 3 ? "rgba(212,160,23,0.25)" : "rgba(46,204,113,0.25)"}` }}>
+                          {h.toFixed(2)}x
+                        </span>
+                      ))}
+                    </div>
+
+                    {/* Chart area */}
+                    <div style={{ background: "#080C10", border: `2px solid ${crashState === "crashed" ? "#E74C3C" : crashState === "cashed" ? "#2ECC71" : "#1C2532"}`, borderRadius: 16, padding: "20px", marginBottom: 20, position: "relative", overflow: "hidden", height: 220 }}>
+                      {/* Grid lines */}
+                      {[1, 2, 3, 5, 10].map(v => (
+                        <div key={v} style={{ position: "absolute", left: 0, right: 0, bottom: `${Math.min((v - 1) / 12 * 100, 95)}%`, borderTop: "1px dashed #1C2532", display: "flex", alignItems: "center" }}>
+                          <span style={{ fontSize: 9, color: "#3D4D60", marginLeft: 6, fontFamily: "Oswald, sans-serif" }}>{v}x</span>
+                        </div>
+                      ))}
+
+                      {/* SVG graph */}
+                      {crashPoints.length > 1 && (
+                        <svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }} viewBox="0 0 100 100" preserveAspectRatio="none">
+                          <defs>
+                            <linearGradient id="crashGrad" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor={crashState === "crashed" ? "#E74C3C" : "#FF4D6D"} stopOpacity="0.3" />
+                              <stop offset="100%" stopColor="#FF4D6D" stopOpacity="0" />
+                            </linearGradient>
+                          </defs>
+                          {(() => {
+                            const maxX = Math.max(...crashPoints.map(p => p.x), 1);
+                            const maxY = Math.max(...crashPoints.map(p => p.y), 2);
+                            const toSvg = (p: {x: number; y: number}) => ({
+                              sx: (p.x / maxX) * 98 + 1,
+                              sy: 99 - Math.min((p.y - 1) / (maxY - 1) * 90, 90),
+                            });
+                            const pts = crashPoints.map(toSvg);
+                            const linePath = pts.map((p, i) => `${i === 0 ? "M" : "L"} ${p.sx} ${p.sy}`).join(" ");
+                            const fillPath = linePath + ` L ${pts[pts.length-1].sx} 99 L 1 99 Z`;
+                            return (
+                              <>
+                                <path d={fillPath} fill="url(#crashGrad)" />
+                                <path d={linePath} fill="none" stroke={crashState === "crashed" ? "#E74C3C" : "#FF4D6D"} strokeWidth="0.8" strokeLinecap="round" />
+                                {pts.length > 0 && <circle cx={pts[pts.length-1].sx} cy={pts[pts.length-1].sy} r="1.5" fill={crashState === "crashed" ? "#E74C3C" : "#FF4D6D"} />}
+                              </>
+                            );
+                          })()}
+                        </svg>
+                      )}
+
+                      {/* Center multiplier */}
+                      <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+                        {crashState === "idle" && (
+                          <div style={{ textAlign: "center" }}>
+                            <div style={{ fontSize: 13, color: "#6B7A8D", marginBottom: 8 }}>🚀 Ожидание ставок...</div>
+                            <div className="font-display" style={{ fontSize: 40, color: "#6B7A8D" }}>1.00x</div>
+                          </div>
+                        )}
+                        {crashState === "running" && (
+                          <div className="font-display" style={{ fontSize: 52, color: "#FF4D6D", fontWeight: 600, textShadow: "0 0 30px rgba(255,77,109,0.5)", letterSpacing: "0.02em", transition: "color 0.1s" }}>
+                            {crashMultiplier.toFixed(2)}x
+                          </div>
+                        )}
+                        {crashState === "crashed" && (
+                          <div style={{ textAlign: "center" }}>
+                            <div style={{ fontSize: 13, color: "#E74C3C", marginBottom: 4 }}>💥 ВЗОРВАЛАСЬ</div>
+                            <div className="font-display" style={{ fontSize: 44, color: "#E74C3C", fontWeight: 600 }}>{crashMultiplier.toFixed(2)}x</div>
+                          </div>
+                        )}
+                        {crashState === "cashed" && (
+                          <div style={{ textAlign: "center" }}>
+                            <div style={{ fontSize: 13, color: "#2ECC71", marginBottom: 4 }}>✅ ВЫВЕДЕНО</div>
+                            <div className="font-display" style={{ fontSize: 44, color: "#2ECC71", fontWeight: 600 }}>{crashCashout?.toFixed(2)}x</div>
+                            <div style={{ fontSize: 14, color: "#2ECC71", marginTop: 4 }}>+{Math.floor(Number(crashBet) * (crashCashout ?? 1)).toLocaleString("ru-RU")} ₽</div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Bet controls */}
+                    <div style={{ background: "#0D1117", border: "1px solid #1C2532", borderRadius: 14, padding: 20 }}>
+                      <div style={{ display: "flex", gap: 12, marginBottom: 16, alignItems: "flex-end" }}>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ fontSize: 12, color: "#6B7A8D", marginBottom: 6, display: "block", letterSpacing: "0.05em" }}>СТАВКА (₽)</label>
+                          <input
+                            className="input-dark"
+                            value={crashBet}
+                            onChange={e => setCrashBet(e.target.value)}
+                            disabled={crashState === "running"}
+                            type="number"
+                            style={{ fontSize: 18, fontFamily: "Oswald, sans-serif", color: "#F0C040" }}
+                          />
+                        </div>
+                        <div style={{ display: "flex", gap: 6 }}>
+                          {["÷2", "×2"].map(op => (
+                            <button key={op} disabled={crashState === "running"} onClick={() => setCrashBet(b => String(op === "÷2" ? Math.max(100, Math.floor(Number(b) / 2)) : Math.min(balance, Number(b) * 2)))} style={{ background: "#141B24", border: "1px solid #1C2532", borderRadius: 8, padding: "10px 14px", color: "#8B9AAB", fontSize: 13, cursor: "pointer", fontFamily: "Oswald, sans-serif" }}>
+                              {op}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+                        {["100", "500", "1000", "5000"].map(amt => (
+                          <button key={amt} disabled={crashState === "running"} onClick={() => setCrashBet(amt)} style={{ flex: 1, background: crashBet === amt ? "rgba(212,160,23,0.12)" : "#141B24", border: `1px solid ${crashBet === amt ? "#D4A017" : "#1C2532"}`, borderRadius: 8, padding: "8px 0", color: crashBet === amt ? "#F0C040" : "#6B7A8D", fontSize: 13, cursor: "pointer", transition: "all 0.15s", fontFamily: "Oswald, sans-serif" }}>
+                            {Number(amt).toLocaleString("ru-RU")}
+                          </button>
+                        ))}
+                      </div>
+
+                      {crashState === "idle" && (
+                        <button className="gold-btn" onClick={startCrash} disabled={balance < Number(crashBet) || Number(crashBet) < 100} style={{ width: "100%", padding: 14, border: "none", borderRadius: 10, cursor: "pointer", fontSize: 16, fontFamily: "Oswald, sans-serif", letterSpacing: "0.06em", opacity: balance < Number(crashBet) ? 0.5 : 1 }}>
+                          🚀 ПОСТАВИТЬ — {Number(crashBet).toLocaleString("ru-RU")} ₽
+                        </button>
+                      )}
+                      {crashState === "running" && (
+                        <button onClick={cashOutCrash} style={{ width: "100%", padding: 14, border: "2px solid #2ECC71", borderRadius: 10, cursor: "pointer", fontSize: 16, fontFamily: "Oswald, sans-serif", letterSpacing: "0.06em", background: "rgba(46,204,113,0.15)", color: "#2ECC71", fontWeight: 700, animation: "pulse-gold 1s infinite" }}>
+                          💰 ЗАБРАТЬ — {Math.floor(Number(crashBet) * crashMultiplier).toLocaleString("ru-RU")} ₽
+                        </button>
+                      )}
+                      {(crashState === "crashed" || crashState === "cashed") && (
+                        <button className="gold-btn" onClick={resetCrash} style={{ width: "100%", padding: 14, border: "none", borderRadius: 10, cursor: "pointer", fontSize: 16, fontFamily: "Oswald, sans-serif", letterSpacing: "0.06em" }}>
+                          ИГРАТЬ СНОВА
+                        </button>
+                      )}
+
+                      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 14, padding: "10px 0", borderTop: "1px solid #1C2532" }}>
+                        <span style={{ fontSize: 12, color: "#6B7A8D" }}>Баланс</span>
+                        <span className="font-display" style={{ fontSize: 14, color: "#F0C040" }}>{balance.toLocaleString("ru-RU")} ₽</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {!["Слоты: Удача", "Слоты: Космос", "Рулетка", "Краш"].includes(activeGame) && (
                   <div style={{ maxWidth: 420, margin: "0 auto", textAlign: "center" }}>
                     <h2 className="font-display" style={{ fontSize: 24, color: "#fff", marginBottom: 8 }}>{activeGame.toUpperCase()}</h2>
                     <div style={{ background: "#0D1117", border: "1px solid #1C2532", borderRadius: 16, padding: "60px 24px" }}>
