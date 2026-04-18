@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import Icon from "@/components/ui/icon";
 
-type Page = "home" | "games" | "deposit" | "withdraw" | "profile" | "history" | "support" | "rules" | "tournaments";
+type Page = "home" | "games" | "deposit" | "withdraw" | "profile" | "history" | "support" | "rules" | "tournaments" | "ranks";
 
 interface Message {
   from: "user" | "operator";
@@ -95,6 +95,42 @@ const tournaments = [
     description: "Завершённый турнир по блэкджеку.",
   },
 ];
+
+const ranks = [
+  {
+    id: 1, name: "Новичок", nameEn: "ROOKIE", icon: "⭐", minPoints: 0, maxPoints: 999,
+    color: "#8B9AAB", bgColor: "rgba(139,154,171,0.1)", borderColor: "rgba(139,154,171,0.25)",
+    perks: ["Доступ к базовым слотам", "Бонус на первый депозит 50%"],
+  },
+  {
+    id: 2, name: "Игрок", nameEn: "PLAYER", icon: "🎯", minPoints: 1000, maxPoints: 4999,
+    color: "#3498DB", bgColor: "rgba(52,152,219,0.1)", borderColor: "rgba(52,152,219,0.25)",
+    perks: ["Все игры разблокированы", "Кэшбэк 3% в неделю", "Приоритетный чат поддержки"],
+  },
+  {
+    id: 3, name: "Серебро", nameEn: "SILVER", icon: "🥈", minPoints: 5000, maxPoints: 14999,
+    color: "#C0C0C0", bgColor: "rgba(192,192,192,0.08)", borderColor: "rgba(192,192,192,0.25)",
+    perks: ["Кэшбэк 5% в неделю", "Бонус на депозит 75%", "Участие в закрытых турнирах", "Персональный менеджер"],
+  },
+  {
+    id: 4, name: "Золото", nameEn: "GOLD", icon: "🥇", minPoints: 15000, maxPoints: 39999,
+    color: "#D4A017", bgColor: "rgba(212,160,23,0.1)", borderColor: "rgba(212,160,23,0.3)",
+    perks: ["Кэшбэк 8% в неделю", "Бонус на депозит 100%", "VIP-турниры", "Подарки в день рождения", "Быстрый вывод до 24ч"],
+  },
+  {
+    id: 5, name: "Платина", nameEn: "PLATINUM", icon: "💎", minPoints: 40000, maxPoints: 99999,
+    color: "#A8D8EA", bgColor: "rgba(168,216,234,0.08)", borderColor: "rgba(168,216,234,0.25)",
+    perks: ["Кэшбэк 12% в неделю", "Бонус на депозит 150%", "Эксклюзивные столы", "Вывод без верификации", "Личный финансовый менеджер"],
+  },
+  {
+    id: 6, name: "Легенда", nameEn: "LEGEND", icon: "👑", minPoints: 100000, maxPoints: Infinity,
+    color: "#FFD700", bgColor: "rgba(255,215,0,0.08)", borderColor: "rgba(255,215,0,0.35)",
+    perks: ["Кэшбэк 20% в неделю", "Неограниченные бонусы", "Индивидуальные условия", "VIP-мероприятия", "Мгновенный вывод 24/7", "Личный куратор"],
+  },
+];
+
+const MY_POINTS = 2800;
+const MY_RANK_ID = 2;
 
 const tournamentLeaderboard: { place: number; name: string; score: number; prize: string; isMe?: boolean }[] = [
   { place: 1, name: "Igor_K", score: 48200, prize: "200 000 ₽" },
@@ -198,6 +234,7 @@ export default function Index() {
     { id: "home", label: "Главная", icon: "Home" },
     { id: "games", label: "Игры", icon: "Gamepad2" },
     { id: "tournaments", label: "Турниры", icon: "Trophy" },
+    { id: "ranks", label: "Ранги", icon: "Medal" },
     { id: "deposit", label: "Депозит", icon: "ArrowDownCircle" },
     { id: "withdraw", label: "Вывод", icon: "ArrowUpCircle" },
     { id: "profile", label: "Профиль", icon: "User" },
@@ -739,6 +776,134 @@ export default function Index() {
                 );
               })()
             )}
+          </div>
+        )}
+
+        {/* RANKS */}
+        {page === "ranks" && (
+          <div className="animate-fade-up">
+            <div style={{ marginBottom: 28 }}>
+              <h1 className="font-display" style={{ fontSize: 32, fontWeight: 500, color: "#fff" }}>РАНГИ</h1>
+              <p style={{ color: "#6B7A8D", marginTop: 6 }}>Повышайте ранг и открывайте эксклюзивные привилегии</p>
+            </div>
+
+            {/* My rank banner */}
+            {(() => {
+              const myRank = ranks.find(r => r.id === MY_RANK_ID)!;
+              const nextRank = ranks.find(r => r.id === MY_RANK_ID + 1);
+              const progress = nextRank
+                ? Math.round(((MY_POINTS - myRank.minPoints) / (nextRank.minPoints - myRank.minPoints)) * 100)
+                : 100;
+              return (
+                <div style={{ background: `linear-gradient(135deg, ${myRank.bgColor}, rgba(0,0,0,0.2))`, border: `1px solid ${myRank.borderColor}`, borderRadius: 16, padding: "24px 28px", marginBottom: 32 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 20, marginBottom: 20 }}>
+                    <div style={{ width: 64, height: 64, borderRadius: 16, background: myRank.bgColor, border: `2px solid ${myRank.borderColor}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32 }}>
+                      {myRank.icon}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 12, color: "#6B7A8D", letterSpacing: "0.1em", marginBottom: 4 }}>ВАШ ТЕКУЩИЙ РАНГ</div>
+                      <div className="font-display" style={{ fontSize: 26, color: myRank.color, fontWeight: 500, letterSpacing: "0.04em" }}>{myRank.nameEn}</div>
+                      <div style={{ fontSize: 14, color: "#8B9AAB" }}>{myRank.name}</div>
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <div className="font-display" style={{ fontSize: 22, color: "#fff" }}>{MY_POINTS.toLocaleString("ru-RU")}</div>
+                      <div style={{ fontSize: 12, color: "#6B7A8D" }}>очков</div>
+                    </div>
+                  </div>
+                  {nextRank && (
+                    <>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                        <span style={{ fontSize: 12, color: "#6B7A8D" }}>До ранга <span style={{ color: nextRank.color }}>{nextRank.nameEn}</span></span>
+                        <span style={{ fontSize: 12, color: "#6B7A8D" }}>{(nextRank.minPoints - MY_POINTS).toLocaleString("ru-RU")} очков</span>
+                      </div>
+                      <div className="progress-bar">
+                        <div className="progress-fill" style={{ width: `${progress}%`, background: `linear-gradient(90deg, ${myRank.color}, ${nextRank.color})` }} />
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6 }}>
+                        <span style={{ fontSize: 11, color: "#3D4D60" }}>{myRank.minPoints.toLocaleString("ru-RU")} оч.</span>
+                        <span style={{ fontSize: 11, color: "#3D4D60" }}>{nextRank.minPoints.toLocaleString("ru-RU")} оч.</span>
+                      </div>
+                    </>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* Ranks list */}
+            <div style={{ display: "grid", gap: 12 }}>
+              {ranks.map((rank) => {
+                const isCurrent = rank.id === MY_RANK_ID;
+                const isUnlocked = rank.id <= MY_RANK_ID;
+                return (
+                  <div key={rank.id} style={{ background: isCurrent ? rank.bgColor : "#0D1117", border: `1px solid ${isCurrent ? rank.borderColor : "#1C2532"}`, borderRadius: 14, overflow: "hidden", transition: "border-color 0.2s", opacity: isUnlocked ? 1 : 0.7 }}>
+                    <div style={{ display: "flex", alignItems: "center", padding: "18px 22px", gap: 16 }}>
+                      {/* Icon */}
+                      <div style={{ width: 48, height: 48, borderRadius: 12, background: rank.bgColor, border: `1px solid ${rank.borderColor}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0, position: "relative" }}>
+                        {rank.icon}
+                        {!isUnlocked && (
+                          <div style={{ position: "absolute", inset: 0, background: "rgba(10,14,20,0.6)", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            <Icon name="Lock" size={14} style={{ color: "#3D4D60" }} />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Info */}
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+                          <span className="font-display" style={{ fontSize: 16, color: rank.color, letterSpacing: "0.04em" }}>{rank.nameEn}</span>
+                          <span style={{ fontSize: 12, color: "#6B7A8D" }}>· {rank.name}</span>
+                          {isCurrent && (
+                            <span style={{ fontSize: 10, background: rank.bgColor, color: rank.color, border: `1px solid ${rank.borderColor}`, padding: "2px 8px", borderRadius: 999, fontWeight: 600 }}>ВЫ ЗДЕСЬ</span>
+                          )}
+                          {isUnlocked && !isCurrent && (
+                            <span style={{ fontSize: 10, background: "rgba(46,204,113,0.1)", color: "#2ECC71", border: "1px solid rgba(46,204,113,0.25)", padding: "2px 8px", borderRadius: 999, fontWeight: 600 }}>✓ ПРОЙДЕН</span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: 12, color: "#6B7A8D" }}>
+                          {rank.maxPoints === Infinity ? `от ${rank.minPoints.toLocaleString("ru-RU")} очков` : `${rank.minPoints.toLocaleString("ru-RU")} – ${rank.maxPoints.toLocaleString("ru-RU")} очков`}
+                        </div>
+                      </div>
+
+                      {/* Chevron */}
+                      <Icon name="ChevronDown" size={16} style={{ color: "#3D4D60" }} />
+                    </div>
+
+                    {/* Perks */}
+                    <div style={{ padding: "0 22px 18px", display: "flex", flexWrap: "wrap" as const, gap: 8 }}>
+                      {rank.perks.map((perk) => (
+                        <div key={perk} style={{ display: "flex", alignItems: "center", gap: 6, background: "#0A0E14", border: "1px solid #1C2532", borderRadius: 8, padding: "6px 12px" }}>
+                          <div style={{ width: 5, height: 5, borderRadius: "50%", background: isUnlocked ? rank.color : "#3D4D60", flexShrink: 0 }} />
+                          <span style={{ fontSize: 12, color: isUnlocked ? "#8B9AAB" : "#3D4D60" }}>{perk}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* How to earn points */}
+            <div style={{ background: "#0D1117", border: "1px solid #1C2532", borderRadius: 14, padding: 24, marginTop: 20 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+                <Icon name="Info" size={16} style={{ color: "#D4A017" }} />
+                <span className="font-display" style={{ fontSize: 13, color: "#D4A017", letterSpacing: "0.06em" }}>КАК НАБИРАТЬ ОЧКИ</span>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                {[
+                  { action: "Ставка в слотах", points: "1 очко за 10 ₽" },
+                  { action: "Ставка на рулетке", points: "1 очко за 8 ₽" },
+                  { action: "Победа в турнире", points: "+500 очков" },
+                  { action: "Ежедневный вход", points: "+10 очков" },
+                  { action: "Пополнение счёта", points: "1 очко за 50 ₽" },
+                  { action: "Приглашение друга", points: "+200 очков" },
+                ].map((item) => (
+                  <div key={item.action} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", background: "#141B24", borderRadius: 10 }}>
+                    <span style={{ fontSize: 13, color: "#8B9AAB" }}>{item.action}</span>
+                    <span style={{ fontSize: 13, color: "#F0C040", fontWeight: 600, fontFamily: "Oswald, sans-serif" }}>{item.points}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         )}
 
