@@ -28,7 +28,76 @@ const games = [
   { id: 5, name: "Баккара", category: "Стол", icon: "Diamond", badge: null, color: "#E74C3C", players: 97 },
   { id: 6, name: "Слоты: Космос", category: "Слоты", icon: "Star", badge: "LIVE", color: "#1ABC9C", players: 567 },
   { id: 7, name: "Краш", category: "Краш", icon: "TrendingUp", badge: "HOT", color: "#FF4D6D", players: 788 },
+  { id: 8, name: "Кейсы", category: "Кейсы", icon: "Package", badge: "NEW", color: "#A855F7", players: 543 },
 ];
+
+interface CaseItem {
+  id: number;
+  name: string;
+  value: number;
+  rarity: "common" | "uncommon" | "rare" | "epic" | "legendary";
+  icon: string;
+  chance: number;
+}
+
+const casesData = [
+  {
+    id: 1,
+    name: "Стартовый кейс",
+    price: 300,
+    color: "#6B7A8D",
+    gradient: "linear-gradient(135deg, #1C2532, #141B24)",
+    icon: "📦",
+    items: [
+      { id: 1, name: "Кэшбэк 50 ₽", value: 50, rarity: "common", icon: "💵", chance: 35 },
+      { id: 2, name: "Кэшбэк 100 ₽", value: 100, rarity: "common", icon: "💵", chance: 28 },
+      { id: 3, name: "Фриспин ×5", value: 150, rarity: "uncommon", icon: "🎰", chance: 20 },
+      { id: 4, name: "Бонус 500 ₽", value: 500, rarity: "rare", icon: "🎁", chance: 10 },
+      { id: 5, name: "Бонус 1 000 ₽", value: 1000, rarity: "epic", icon: "💎", chance: 5 },
+      { id: 6, name: "Джекпот 5 000 ₽", value: 5000, rarity: "legendary", icon: "👑", chance: 2 },
+    ] as CaseItem[],
+  },
+  {
+    id: 2,
+    name: "Золотой кейс",
+    price: 1000,
+    color: "#D4A017",
+    gradient: "linear-gradient(135deg, rgba(212,160,23,0.2), rgba(212,160,23,0.05))",
+    icon: "🏆",
+    items: [
+      { id: 1, name: "Кэшбэк 200 ₽", value: 200, rarity: "common", icon: "💵", chance: 30 },
+      { id: 2, name: "Бонус 500 ₽", value: 500, rarity: "uncommon", icon: "🎁", chance: 25 },
+      { id: 3, name: "Бонус 1 500 ₽", value: 1500, rarity: "rare", icon: "💎", chance: 22 },
+      { id: 4, name: "Бонус 3 000 ₽", value: 3000, rarity: "epic", icon: "⭐", chance: 15 },
+      { id: 5, name: "Бонус 7 000 ₽", value: 7000, rarity: "epic", icon: "🔥", chance: 6 },
+      { id: 6, name: "Джекпот 25 000 ₽", value: 25000, rarity: "legendary", icon: "👑", chance: 2 },
+    ] as CaseItem[],
+  },
+  {
+    id: 3,
+    name: "VIP кейс",
+    price: 5000,
+    color: "#A855F7",
+    gradient: "linear-gradient(135deg, rgba(168,85,247,0.2), rgba(168,85,247,0.05))",
+    icon: "💜",
+    items: [
+      { id: 1, name: "Бонус 1 000 ₽", value: 1000, rarity: "common", icon: "💵", chance: 28 },
+      { id: 2, name: "Бонус 3 000 ₽", value: 3000, rarity: "uncommon", icon: "🎁", chance: 25 },
+      { id: 3, name: "Бонус 8 000 ₽", value: 8000, rarity: "rare", icon: "💎", chance: 20 },
+      { id: 4, name: "Бонус 15 000 ₽", value: 15000, rarity: "epic", icon: "⭐", chance: 15 },
+      { id: 5, name: "Бонус 30 000 ₽", value: 30000, rarity: "legendary", icon: "🔥", chance: 8 },
+      { id: 6, name: "Джекпот 100 000 ₽", value: 100000, rarity: "legendary", icon: "👑", chance: 4 },
+    ] as CaseItem[],
+  },
+];
+
+const RARITY_CONFIG = {
+  common:    { label: "Обычный",     color: "#8B9AAB", bg: "rgba(139,154,171,0.12)", border: "rgba(139,154,171,0.25)" },
+  uncommon:  { label: "Необычный",   color: "#2ECC71", bg: "rgba(46,204,113,0.1)",   border: "rgba(46,204,113,0.25)" },
+  rare:      { label: "Редкий",      color: "#3498DB", bg: "rgba(52,152,219,0.1)",   border: "rgba(52,152,219,0.25)" },
+  epic:      { label: "Эпический",   color: "#A855F7", bg: "rgba(168,85,247,0.12)",  border: "rgba(168,85,247,0.3)"  },
+  legendary: { label: "Легендарный", color: "#D4A017", bg: "rgba(212,160,23,0.12)",  border: "rgba(212,160,23,0.35)" },
+};
 
 const tournaments = [
   {
@@ -390,6 +459,60 @@ export default function Index() {
     setCrashCashout(null);
   };
 
+  // Cases game state
+  const [selectedCase, setSelectedCase] = useState<number | null>(null);
+  const [caseSpinning, setCaseSpinning] = useState(false);
+  const [caseResult, setCaseResult] = useState<CaseItem | null>(null);
+  const [caseOffset, setCaseOffset] = useState(0);
+  const [caseStrip, setCaseStrip] = useState<CaseItem[]>([]);
+  const [caseInventory, setCaseInventory] = useState<(CaseItem & { caseName: string; date: string })[]>([]);
+
+  const openCase = (caseId: number) => {
+    const caseData = casesData.find(c => c.id === caseId)!;
+    if (balance < caseData.price || caseSpinning) return;
+    setBalance(b => b - caseData.price);
+    setCaseResult(null);
+    setCaseSpinning(true);
+
+    // Pick winner by chance
+    const roll = Math.random() * 100;
+    let cumulative = 0;
+    let winner = caseData.items[0];
+    for (const item of caseData.items) {
+      cumulative += item.chance;
+      if (roll <= cumulative) { winner = item; break; }
+    }
+
+    // Build strip: 40 random + winner at position 34
+    const strip: CaseItem[] = [];
+    for (let i = 0; i < 40; i++) {
+      const r = Math.random() * 100;
+      let cum = 0;
+      let picked = caseData.items[0];
+      for (const item of caseData.items) {
+        cum += item.chance;
+        if (r <= cum) { picked = item; break; }
+      }
+      strip.push(picked);
+    }
+    strip[34] = winner;
+    setCaseStrip(strip);
+
+    const itemW = 104;
+    const centerOffset = 34 * itemW - (320 - itemW) / 2;
+    setCaseOffset(0);
+
+    setTimeout(() => {
+      setCaseOffset(centerOffset);
+      setTimeout(() => {
+        setCaseSpinning(false);
+        setCaseResult(winner);
+        setBalance(b => b + winner.value);
+        setCaseInventory(prev => [{ ...winner, caseName: caseData.name, date: new Date().toLocaleDateString("ru-RU") }, ...prev]);
+      }, 4200);
+    }, 50);
+  };
+
   const [activeTournament, setActiveTournament] = useState<number | null>(null);
   const [bonusFilter, setBonusFilter] = useState<"all" | "available" | "active" | "used">("all");
   const [activatedBonuses, setActivatedBonuses] = useState<number[]>([]);
@@ -740,7 +863,140 @@ export default function Index() {
                   </div>
                 )}
 
-                {!["Слоты: Удача", "Слоты: Космос", "Рулетка", "Краш"].includes(activeGame) && (
+                {activeGame === "Кейсы" && (
+                  <div style={{ maxWidth: 620, margin: "0 auto" }}>
+                    {selectedCase === null ? (
+                      <>
+                        <div style={{ marginBottom: 20 }}>
+                          <h2 className="font-display" style={{ fontSize: 24, color: "#fff", marginBottom: 6 }}>КЕЙСЫ</h2>
+                          <p style={{ color: "#6B7A8D", fontSize: 13 }}>Откройте кейс и получите случайный приз</p>
+                        </div>
+
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14, marginBottom: 28 }}>
+                          {casesData.map(c => (
+                            <div key={c.id} onClick={() => setSelectedCase(c.id)} style={{ background: c.gradient, border: `1px solid ${c.color}44`, borderRadius: 16, overflow: "hidden", cursor: "pointer", transition: "all 0.25s" }} className="game-card">
+                              <div style={{ height: 110, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 52, position: "relative" }}>
+                                {c.icon}
+                                <div style={{ position: "absolute", top: 10, right: 10, fontSize: 10, background: `${c.color}22`, color: c.color, border: `1px solid ${c.color}55`, padding: "2px 8px", borderRadius: 999, fontWeight: 600 }}>NEW</div>
+                              </div>
+                              <div style={{ padding: "14px 16px", borderTop: `1px solid ${c.color}22` }}>
+                                <div style={{ fontWeight: 600, color: "#D1D9E6", fontSize: 14, marginBottom: 6 }}>{c.name}</div>
+                                <div className="font-display" style={{ fontSize: 20, color: c.color }}>{c.price.toLocaleString("ru-RU")} ₽</div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Inventory */}
+                        {caseInventory.length > 0 && (
+                          <div style={{ background: "#0D1117", border: "1px solid #1C2532", borderRadius: 14, padding: 20 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+                              <Icon name="Archive" size={15} style={{ color: "#D4A017" }} />
+                              <span className="font-display" style={{ fontSize: 13, color: "#D4A017", letterSpacing: "0.06em" }}>МОИ ПРЕДМЕТЫ</span>
+                            </div>
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
+                              {caseInventory.slice(0, 8).map((item, i) => {
+                                const rc = RARITY_CONFIG[item.rarity];
+                                return (
+                                  <div key={i} style={{ background: rc.bg, border: `1px solid ${rc.border}`, borderRadius: 10, padding: "10px 8px", textAlign: "center" }}>
+                                    <div style={{ fontSize: 24, marginBottom: 4 }}>{item.icon}</div>
+                                    <div style={{ fontSize: 11, color: rc.color, fontWeight: 600, marginBottom: 2 }}>{item.name}</div>
+                                    <div style={{ fontSize: 11, color: "#6B7A8D" }}>{item.value.toLocaleString("ru-RU")} ₽</div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      (() => {
+                        const caseData = casesData.find(c => c.id === selectedCase)!;
+                        return (
+                          <div>
+                            <button onClick={() => { setSelectedCase(null); setCaseResult(null); setCaseSpinning(false); }} style={{ background: "none", border: "none", color: "#6B7A8D", cursor: "pointer", fontSize: 14, marginBottom: 20, display: "flex", alignItems: "center", gap: 6 }}>
+                              <Icon name="ArrowLeft" size={14} /> Все кейсы
+                            </button>
+
+                            <div style={{ textAlign: "center", marginBottom: 20 }}>
+                              <div style={{ fontSize: 48, marginBottom: 8 }}>{caseData.icon}</div>
+                              <h2 className="font-display" style={{ fontSize: 22, color: "#fff" }}>{caseData.name.toUpperCase()}</h2>
+                            </div>
+
+                            {/* Reel */}
+                            <div style={{ background: "#080C10", border: `1px solid ${caseData.color}44`, borderRadius: 16, padding: "20px 0", marginBottom: 20, position: "relative", overflow: "hidden" }}>
+                              {/* Center marker */}
+                              <div style={{ position: "absolute", top: 0, bottom: 0, left: "50%", transform: "translateX(-50%)", width: 2, background: caseData.color, zIndex: 10, pointerEvents: "none" }} />
+                              <div style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: 80, background: "linear-gradient(to right, #080C10, transparent)", zIndex: 5, pointerEvents: "none" }} />
+                              <div style={{ position: "absolute", top: 0, bottom: 0, right: 0, width: 80, background: "linear-gradient(to left, #080C10, transparent)", zIndex: 5, pointerEvents: "none" }} />
+
+                              <div style={{ display: "flex", gap: 8, paddingLeft: 20, transform: `translateX(-${caseOffset}px)`, transition: caseSpinning ? "transform 4s cubic-bezier(0.25, 0.46, 0.45, 0.94)" : "none", willChange: "transform" }}>
+                                {(caseSpinning || caseOffset > 0 ? caseStrip : caseData.items.concat(caseData.items).concat(caseData.items).concat(caseData.items)).map((item, i) => {
+                                  const rc = RARITY_CONFIG[item.rarity];
+                                  return (
+                                    <div key={i} style={{ width: 96, flexShrink: 0, background: rc.bg, border: `2px solid ${rc.border}`, borderRadius: 12, padding: "12px 8px", textAlign: "center" }}>
+                                      <div style={{ fontSize: 28, marginBottom: 6 }}>{item.icon}</div>
+                                      <div style={{ fontSize: 10, color: rc.color, fontWeight: 700, marginBottom: 3, letterSpacing: "0.04em" }}>{rc.label.toUpperCase()}</div>
+                                      <div style={{ fontSize: 11, color: "#D1D9E6", fontWeight: 500 }}>{item.name}</div>
+                                      <div style={{ fontSize: 11, color: "#6B7A8D", marginTop: 2 }}>{item.value.toLocaleString("ru-RU")} ₽</div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            {/* Result */}
+                            {caseResult && !caseSpinning && (
+                              <div style={{ background: RARITY_CONFIG[caseResult.rarity].bg, border: `1px solid ${RARITY_CONFIG[caseResult.rarity].border}`, borderRadius: 14, padding: "20px 24px", marginBottom: 16, textAlign: "center", animation: "fadeUp 0.4s ease" }}>
+                                <div style={{ fontSize: 40, marginBottom: 8 }}>{caseResult.icon}</div>
+                                <div style={{ fontSize: 11, color: RARITY_CONFIG[caseResult.rarity].color, fontWeight: 700, letterSpacing: "0.08em", marginBottom: 4 }}>{RARITY_CONFIG[caseResult.rarity].label.toUpperCase()}</div>
+                                <div style={{ fontSize: 18, fontWeight: 600, color: "#D1D9E6", marginBottom: 4 }}>{caseResult.name}</div>
+                                <div className="font-display" style={{ fontSize: 28, color: RARITY_CONFIG[caseResult.rarity].color }}>+{caseResult.value.toLocaleString("ru-RU")} ₽</div>
+                                <div style={{ fontSize: 12, color: "#6B7A8D", marginTop: 6 }}>Зачислено на баланс</div>
+                              </div>
+                            )}
+
+                            {/* Items list */}
+                            <div style={{ background: "#0D1117", border: "1px solid #1C2532", borderRadius: 14, padding: 18, marginBottom: 16 }}>
+                              <div style={{ fontSize: 11, color: "#6B7A8D", letterSpacing: "0.08em", marginBottom: 12, fontFamily: "Oswald, sans-serif" }}>СОДЕРЖИМОЕ КЕЙСА</div>
+                              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                                {caseData.items.map(item => {
+                                  const rc = RARITY_CONFIG[item.rarity];
+                                  return (
+                                    <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: rc.bg, border: `1px solid ${rc.border}`, borderRadius: 10 }}>
+                                      <span style={{ fontSize: 20 }}>{item.icon}</span>
+                                      <div style={{ flex: 1 }}>
+                                        <div style={{ fontSize: 12, color: "#D1D9E6", fontWeight: 500 }}>{item.name}</div>
+                                        <div style={{ fontSize: 11, color: rc.color }}>{item.chance}% · {item.value.toLocaleString("ru-RU")} ₽</div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            {/* Open button */}
+                            <button
+                              className="gold-btn"
+                              onClick={() => openCase(caseData.id)}
+                              disabled={caseSpinning || balance < caseData.price}
+                              style={{ width: "100%", padding: 16, border: "none", borderRadius: 12, cursor: caseSpinning || balance < caseData.price ? "not-allowed" : "pointer", fontSize: 16, fontFamily: "Oswald, sans-serif", letterSpacing: "0.06em", opacity: balance < caseData.price ? 0.5 : 1 }}
+                            >
+                              {caseSpinning ? "ОТКРЫВАЕМ..." : `📦 ОТКРЫТЬ — ${caseData.price.toLocaleString("ru-RU")} ₽`}
+                            </button>
+
+                            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 12, fontSize: 12, color: "#6B7A8D" }}>
+                              <span>Баланс: <span style={{ color: "#F0C040" }}>{balance.toLocaleString("ru-RU")} ₽</span></span>
+                              <span>Все выигрыши зачисляются мгновенно</span>
+                            </div>
+                          </div>
+                        );
+                      })()
+                    )}
+                  </div>
+                )}
+
+                {!["Слоты: Удача", "Слоты: Космос", "Рулетка", "Краш", "Кейсы"].includes(activeGame) && (
                   <div style={{ maxWidth: 420, margin: "0 auto", textAlign: "center" }}>
                     <h2 className="font-display" style={{ fontSize: 24, color: "#fff", marginBottom: 8 }}>{activeGame.toUpperCase()}</h2>
                     <div style={{ background: "#0D1117", border: "1px solid #1C2532", borderRadius: 16, padding: "60px 24px" }}>
