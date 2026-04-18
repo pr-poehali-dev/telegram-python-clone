@@ -50,6 +50,8 @@ export default function Index() {
   const [rouletteNum, setRouletteNum] = useState<number | null>(null);
   const [rouletteSpinning, setRouletteSpinning] = useState(false);
   const [depositAmount, setDepositAmount] = useState("");
+  const [depositMethod, setDepositMethod] = useState("");
+  const [sbpCopied, setSbpCopied] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [activeGame, setActiveGame] = useState<string | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -356,17 +358,71 @@ export default function Index() {
               <div style={{ marginBottom: 24 }}>
                 <label style={{ fontSize: 13, color: "#6B7A8D", marginBottom: 10, display: "block" }}>Способ оплаты</label>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                  {["Карта (Visa/MC)", "СБП", "Криптовалюта", "Электронный кошелёк"].map((m) => (
-                    <button key={m} style={{ background: "#141B24", border: "1px solid #1C2532", borderRadius: 8, padding: "12px", color: "#8B9AAB", fontSize: 13, cursor: "pointer", textAlign: "left" }}>
-                      {m}
+                  {[
+                    { id: "sbp", label: "СБП", emoji: "⚡" },
+                    { id: "card", label: "Карта (Visa/MC)", emoji: "💳" },
+                    { id: "crypto", label: "Криптовалюта", emoji: "₿" },
+                    { id: "wallet", label: "Эл. кошелёк", emoji: "👛" },
+                  ].map((m) => (
+                    <button key={m.id} onClick={() => setDepositMethod(m.id)} style={{ background: depositMethod === m.id ? "rgba(212,160,23,0.12)" : "#141B24", border: `1px solid ${depositMethod === m.id ? "#D4A017" : "#1C2532"}`, borderRadius: 8, padding: "12px 14px", color: depositMethod === m.id ? "#F0C040" : "#8B9AAB", fontSize: 13, cursor: "pointer", textAlign: "left", display: "flex", alignItems: "center", gap: 8, transition: "all 0.15s" }}>
+                      <span>{m.emoji}</span>{m.label}
                     </button>
                   ))}
                 </div>
               </div>
 
-              <button className="gold-btn" style={{ width: "100%", padding: 14, border: "none", borderRadius: 10, cursor: "pointer", fontSize: 15, fontFamily: "Oswald, sans-serif", letterSpacing: "0.06em" }}
-                onClick={() => { if (depositAmount && Number(depositAmount) > 0) { setBalance(b => b + Number(depositAmount)); setDepositAmount(""); } }}>
-                ПОПОЛНИТЬ СЧЁТ
+              {/* СБП реквизиты */}
+              {depositMethod === "sbp" && (
+                <div style={{ background: "rgba(0,180,120,0.06)", border: "1px solid rgba(0,180,120,0.25)", borderRadius: 12, padding: "20px", marginBottom: 20 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+                    <span style={{ fontSize: 18 }}>⚡</span>
+                    <span className="font-display" style={{ fontSize: 14, color: "#2ECC71", letterSpacing: "0.05em" }}>ОПЛАТА ЧЕРЕЗ СБП</span>
+                  </div>
+                  <div style={{ fontSize: 13, color: "#6B7A8D", marginBottom: 10 }}>
+                    Переведите точную сумму на номер:
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, background: "#0A0E14", borderRadius: 10, padding: "14px 16px", marginBottom: 14 }}>
+                    <span className="font-display" style={{ fontSize: 22, color: "#fff", letterSpacing: "0.04em", flex: 1 }}>+7 960 170-57-44</span>
+                    <button
+                      onClick={() => { navigator.clipboard.writeText("+79601705744"); setSbpCopied(true); setTimeout(() => setSbpCopied(false), 2000); }}
+                      style={{ background: sbpCopied ? "rgba(46,204,113,0.2)" : "rgba(212,160,23,0.15)", border: `1px solid ${sbpCopied ? "rgba(46,204,113,0.4)" : "rgba(212,160,23,0.3)"}`, borderRadius: 8, padding: "8px 14px", color: sbpCopied ? "#2ECC71" : "#F0C040", fontSize: 13, cursor: "pointer", fontWeight: 500, transition: "all 0.2s", whiteSpace: "nowrap" }}
+                    >
+                      {sbpCopied ? "✓ Скопировано" : "Копировать"}
+                    </button>
+                  </div>
+                  <div style={{ display: "grid", gap: 8 }}>
+                    {[
+                      "Укажите сумму точно как в поле выше",
+                      "В комментарии напишите ваш ID: #48821",
+                      "После оплаты нажмите «Я оплатил»",
+                    ].map((tip, i) => (
+                      <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                        <div style={{ width: 18, height: 18, borderRadius: "50%", background: "rgba(46,204,113,0.15)", border: "1px solid rgba(46,204,113,0.3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "#2ECC71", flexShrink: 0, marginTop: 1 }}>{i + 1}</div>
+                        <span style={{ fontSize: 13, color: "#8B9AAB", lineHeight: 1.5 }}>{tip}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {depositMethod === "card" && (
+                <div style={{ background: "rgba(212,160,23,0.06)", border: "1px solid rgba(212,160,23,0.2)", borderRadius: 12, padding: "16px 20px", marginBottom: 20, fontSize: 13, color: "#8B9AAB" }}>
+                  💳 Оплата картой временно недоступна. Воспользуйтесь СБП.
+                </div>
+              )}
+
+              {(depositMethod === "crypto" || depositMethod === "wallet") && (
+                <div style={{ background: "rgba(212,160,23,0.06)", border: "1px solid rgba(212,160,23,0.2)", borderRadius: 12, padding: "16px 20px", marginBottom: 20, fontSize: 13, color: "#8B9AAB" }}>
+                  🚧 Этот способ оплаты скоро будет доступен.
+                </div>
+              )}
+
+              <button
+                className="gold-btn"
+                style={{ width: "100%", padding: 14, border: "none", borderRadius: 10, cursor: depositMethod === "sbp" ? "pointer" : "not-allowed", fontSize: 15, fontFamily: "Oswald, sans-serif", letterSpacing: "0.06em", opacity: depositMethod === "sbp" ? 1 : 0.4 }}
+                onClick={() => { if (depositMethod === "sbp" && depositAmount && Number(depositAmount) > 0) alert("Спасибо! После проверки платежа баланс будет пополнен."); }}
+              >
+                {depositMethod === "sbp" ? "Я ОПЛАТИЛ" : "ВЫБЕРИТЕ СПОСОБ ОПЛАТЫ"}
               </button>
             </div>
 
