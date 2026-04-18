@@ -29,6 +29,7 @@ const games = [
   { id: 6, name: "Слоты: Космос", category: "Слоты", icon: "Star", badge: "LIVE", color: "#1ABC9C", players: 567 },
   { id: 7, name: "Краш", category: "Краш", icon: "TrendingUp", badge: "HOT", color: "#FF4D6D", players: 788 },
   { id: 8, name: "Кейсы", category: "Кейсы", icon: "Package", badge: "NEW", color: "#A855F7", players: 543 },
+  { id: 9, name: "Дайс", category: "Кости", icon: "Dice6", badge: null, color: "#F59E0B", players: 312 },
 ];
 
 interface CaseItem {
@@ -511,6 +512,39 @@ export default function Index() {
         setCaseInventory(prev => [{ ...winner, caseName: caseData.name, date: new Date().toLocaleDateString("ru-RU") }, ...prev]);
       }, 4200);
     }, 50);
+  };
+
+  // Dice game state
+  const [diceBet, setDiceBet] = useState("300");
+  const [diceMode, setDiceMode] = useState<"over" | "under">("over");
+  const [diceTarget, setDiceTarget] = useState(50);
+  const [diceRolling, setDiceRolling] = useState(false);
+  const [diceResult, setDiceResult] = useState<number | null>(null);
+  const [diceWon, setDiceWon] = useState<boolean | null>(null);
+  const [diceHistory, setDiceHistory] = useState<{ roll: number; won: boolean; profit: string }[]>([]);
+  const [diceRotation, setDiceRotation] = useState({ x: 0, y: 0, z: 0 });
+
+  const diceChance = diceMode === "over" ? 100 - diceTarget : diceTarget;
+  const diceMultiplier = diceChance > 0 ? Math.floor((96 / diceChance) * 100) / 100 : 0;
+
+  const rollDice = () => {
+    if (diceRolling || balance < Number(diceBet) || Number(diceBet) < 10) return;
+    setBalance(b => b - Number(diceBet));
+    setDiceRolling(true);
+    setDiceResult(null);
+    setDiceWon(null);
+    setDiceRotation({ x: Math.random() * 720, y: Math.random() * 720, z: Math.random() * 360 });
+
+    setTimeout(() => {
+      const roll = Math.floor(Math.random() * 100) + 1;
+      const won = diceMode === "over" ? roll > diceTarget : roll < diceTarget;
+      const profit = won ? Math.floor(Number(diceBet) * diceMultiplier) : 0;
+      setDiceResult(roll);
+      setDiceWon(won);
+      setDiceRolling(false);
+      if (won) setBalance(b => b + profit);
+      setDiceHistory(h => [{ roll, won, profit: won ? `+${profit.toLocaleString("ru-RU")} ₽` : `-${Number(diceBet).toLocaleString("ru-RU")} ₽` }, ...h.slice(0, 9)]);
+    }, 900);
   };
 
   const [activeTournament, setActiveTournament] = useState<number | null>(null);
@@ -996,7 +1030,159 @@ export default function Index() {
                   </div>
                 )}
 
-                {!["Слоты: Удача", "Слоты: Космос", "Рулетка", "Краш", "Кейсы"].includes(activeGame) && (
+                {activeGame === "Дайс" && (
+                  <div style={{ maxWidth: 500, margin: "0 auto" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 6 }}>
+                      <h2 className="font-display" style={{ fontSize: 24, color: "#fff" }}>ДАЙС</h2>
+                    </div>
+                    <p style={{ color: "#6B7A8D", fontSize: 13, marginBottom: 24 }}>Угадай — кубик выпадет выше или ниже твоей цели</p>
+
+                    {/* Dice visual */}
+                    <div style={{ background: "#080C10", border: "1px solid #1C2532", borderRadius: 16, padding: "36px 24px", marginBottom: 20, display: "flex", flexDirection: "column", alignItems: "center", gap: 20 }}>
+                      {/* Die face */}
+                      <div style={{
+                        width: 100, height: 100, borderRadius: 18,
+                        background: diceResult === null ? "#141B24" : diceWon ? "rgba(46,204,113,0.15)" : "rgba(231,76,60,0.15)",
+                        border: `3px solid ${diceResult === null ? "#1C2532" : diceWon ? "#2ECC71" : "#E74C3C"}`,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        transition: "all 0.3s ease",
+                        transform: diceRolling ? `rotate3d(1,1,0,${diceRotation.x}deg)` : "rotate3d(0,0,0,0deg)",
+                        boxShadow: diceResult !== null ? `0 0 30px ${diceWon ? "rgba(46,204,113,0.2)" : "rgba(231,76,60,0.2)"}` : "none",
+                      }}>
+                        {diceRolling ? (
+                          <span style={{ fontSize: 42 }}>🎲</span>
+                        ) : diceResult !== null ? (
+                          <span className="font-display" style={{ fontSize: 42, color: diceWon ? "#2ECC71" : "#E74C3C", fontWeight: 700 }}>{diceResult}</span>
+                        ) : (
+                          <span style={{ fontSize: 42 }}>🎲</span>
+                        )}
+                      </div>
+
+                      {/* Result message */}
+                      {diceResult !== null && !diceRolling && (
+                        <div style={{ textAlign: "center", animation: "fadeUp 0.3s ease" }}>
+                          <div className="font-display" style={{ fontSize: 20, color: diceWon ? "#2ECC71" : "#E74C3C", letterSpacing: "0.04em" }}>
+                            {diceWon ? "🎉 ПОБЕДА!" : "💥 ПРОИГРЫШ"}
+                          </div>
+                          <div style={{ fontSize: 13, color: "#6B7A8D", marginTop: 4 }}>
+                            Выпало <span style={{ color: "#fff", fontWeight: 600 }}>{diceResult}</span> — нужно было {diceMode === "over" ? `больше ${diceTarget}` : `меньше ${diceTarget}`}
+                          </div>
+                          {diceWon && (
+                            <div className="font-display" style={{ fontSize: 22, color: "#2ECC71", marginTop: 6 }}>
+                              +{Math.floor(Number(diceBet) * diceMultiplier).toLocaleString("ru-RU")} ₽
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* History chips */}
+                      {diceHistory.length > 0 && (
+                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" as const, justifyContent: "center" }}>
+                          {diceHistory.map((h, i) => (
+                            <span key={i} style={{ fontSize: 12, fontFamily: "Oswald, sans-serif", padding: "3px 10px", borderRadius: 6, background: h.won ? "rgba(46,204,113,0.12)" : "rgba(231,76,60,0.12)", color: h.won ? "#2ECC71" : "#E74C3C", border: `1px solid ${h.won ? "rgba(46,204,113,0.3)" : "rgba(231,76,60,0.3)"}` }}>
+                              {h.roll}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Controls */}
+                    <div style={{ background: "#0D1117", border: "1px solid #1C2532", borderRadius: 14, padding: 22 }}>
+                      {/* Over / Under toggle */}
+                      <div style={{ marginBottom: 20 }}>
+                        <label style={{ fontSize: 12, color: "#6B7A8D", marginBottom: 8, display: "block", letterSpacing: "0.06em" }}>СТАВЛЮ НА</label>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                          {([
+                            { id: "over", label: "БОЛЬШЕ", icon: "TrendingUp", color: "#2ECC71" },
+                            { id: "under", label: "МЕНЬШЕ", icon: "TrendingDown", color: "#E74C3C" },
+                          ] as const).map(m => (
+                            <button key={m.id} onClick={() => setDiceMode(m.id)} style={{ padding: "12px", border: `2px solid ${diceMode === m.id ? m.color : "#1C2532"}`, borderRadius: 10, background: diceMode === m.id ? `${m.color}18` : "#141B24", color: diceMode === m.id ? m.color : "#6B7A8D", cursor: "pointer", fontFamily: "Oswald, sans-serif", fontSize: 14, letterSpacing: "0.06em", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, transition: "all 0.15s" }}>
+                              <Icon name={m.icon} size={14} />{m.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Target slider */}
+                      <div style={{ marginBottom: 20 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
+                          <label style={{ fontSize: 12, color: "#6B7A8D", letterSpacing: "0.06em" }}>
+                            ЦЕЛЬ: <span style={{ color: "#F0C040", fontFamily: "Oswald, sans-serif", fontSize: 16 }}>{diceTarget}</span>
+                          </label>
+                          <span style={{ fontSize: 12, color: "#6B7A8D" }}>
+                            Шанс: <span style={{ color: "#F0C040" }}>{diceChance}%</span>
+                          </span>
+                        </div>
+                        <input
+                          type="range" min={5} max={95} value={diceTarget}
+                          onChange={e => setDiceTarget(Number(e.target.value))}
+                          disabled={diceRolling}
+                          style={{ width: "100%", accentColor: "#D4A017", cursor: "pointer", height: 4 }}
+                        />
+                        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6 }}>
+                          <span style={{ fontSize: 11, color: "#3D4D60" }}>5</span>
+                          <span style={{ fontSize: 11, color: "#3D4D60" }}>95</span>
+                        </div>
+                      </div>
+
+                      {/* Bet input + presets */}
+                      <div style={{ marginBottom: 18 }}>
+                        <label style={{ fontSize: 12, color: "#6B7A8D", marginBottom: 8, display: "block", letterSpacing: "0.06em" }}>СТАВКА (₽)</label>
+                        <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                          <input className="input-dark" value={diceBet} onChange={e => setDiceBet(e.target.value)} disabled={diceRolling} type="number" style={{ flex: 1, fontSize: 18, fontFamily: "Oswald, sans-serif", color: "#F0C040" }} />
+                          {["÷2", "×2", "MAX"].map(op => (
+                            <button key={op} disabled={diceRolling} onClick={() => {
+                              if (op === "÷2") setDiceBet(b => String(Math.max(10, Math.floor(Number(b) / 2))));
+                              else if (op === "×2") setDiceBet(b => String(Math.min(balance, Number(b) * 2)));
+                              else setDiceBet(String(balance));
+                            }} style={{ background: "#141B24", border: "1px solid #1C2532", borderRadius: 8, padding: "10px 12px", color: "#8B9AAB", fontSize: 12, cursor: "pointer", fontFamily: "Oswald, sans-serif" }}>
+                              {op}
+                            </button>
+                          ))}
+                        </div>
+                        <div style={{ display: "flex", gap: 6 }}>
+                          {["100", "300", "1000", "5000"].map(a => (
+                            <button key={a} disabled={diceRolling} onClick={() => setDiceBet(a)} style={{ flex: 1, background: diceBet === a ? "rgba(212,160,23,0.12)" : "#141B24", border: `1px solid ${diceBet === a ? "#D4A017" : "#1C2532"}`, borderRadius: 8, padding: "7px 0", color: diceBet === a ? "#F0C040" : "#6B7A8D", fontSize: 12, cursor: "pointer", fontFamily: "Oswald, sans-serif" }}>
+                              {Number(a).toLocaleString("ru-RU")}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Stats row */}
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 18 }}>
+                        {[
+                          { label: "Множитель", value: `×${diceMultiplier.toFixed(2)}` },
+                          { label: "Выигрыш", value: `${Math.floor(Number(diceBet) * diceMultiplier).toLocaleString("ru-RU")} ₽` },
+                          { label: "Шанс", value: `${diceChance}%` },
+                        ].map(s => (
+                          <div key={s.label} style={{ background: "#141B24", borderRadius: 10, padding: "10px 12px", textAlign: "center" }}>
+                            <div style={{ fontSize: 10, color: "#3D4D60", marginBottom: 4, letterSpacing: "0.06em" }}>{s.label.toUpperCase()}</div>
+                            <div className="font-display" style={{ fontSize: 15, color: "#F0C040" }}>{s.value}</div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Roll button */}
+                      <button
+                        className="gold-btn"
+                        onClick={rollDice}
+                        disabled={diceRolling || balance < Number(diceBet) || Number(diceBet) < 10}
+                        style={{ width: "100%", padding: 14, border: "none", borderRadius: 10, cursor: diceRolling || balance < Number(diceBet) ? "not-allowed" : "pointer", fontSize: 16, fontFamily: "Oswald, sans-serif", letterSpacing: "0.06em", opacity: balance < Number(diceBet) ? 0.5 : 1 }}
+                      >
+                        {diceRolling ? "БРОСАЕМ..." : `🎲 БРОСИТЬ — ${Number(diceBet).toLocaleString("ru-RU")} ₽`}
+                      </button>
+
+                      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 14, paddingTop: 14, borderTop: "1px solid #1C2532" }}>
+                        <span style={{ fontSize: 12, color: "#6B7A8D" }}>Баланс</span>
+                        <span className="font-display" style={{ fontSize: 14, color: "#F0C040" }}>{balance.toLocaleString("ru-RU")} ₽</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {!["Слоты: Удача", "Слоты: Космос", "Рулетка", "Краш", "Кейсы", "Дайс"].includes(activeGame) && (
                   <div style={{ maxWidth: 420, margin: "0 auto", textAlign: "center" }}>
                     <h2 className="font-display" style={{ fontSize: 24, color: "#fff", marginBottom: 8 }}>{activeGame.toUpperCase()}</h2>
                     <div style={{ background: "#0D1117", border: "1px solid #1C2532", borderRadius: 16, padding: "60px 24px" }}>
