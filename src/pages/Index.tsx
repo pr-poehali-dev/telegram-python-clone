@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import Icon from "@/components/ui/icon";
 
-type Page = "home" | "games" | "deposit" | "withdraw" | "profile" | "history" | "support" | "rules";
+type Page = "home" | "games" | "deposit" | "withdraw" | "profile" | "history" | "support" | "rules" | "tournaments";
 
 interface Message {
   from: "user" | "operator";
@@ -27,6 +27,82 @@ const games = [
   { id: 4, name: "Слоты: Удача", category: "Слоты", icon: "Zap", badge: "HOT", color: "#E67E22", players: 1023 },
   { id: 5, name: "Баккара", category: "Стол", icon: "Diamond", badge: null, color: "#E74C3C", players: 97 },
   { id: 6, name: "Слоты: Космос", category: "Слоты", icon: "Star", badge: "LIVE", color: "#1ABC9C", players: 567 },
+];
+
+const tournaments = [
+  {
+    id: 1,
+    name: "Золотая лихорадка",
+    game: "Слоты",
+    prize: "500 000 ₽",
+    prizeRaw: 500000,
+    start: "20.04.2026 18:00",
+    end: "27.04.2026 23:59",
+    players: 312,
+    maxPlayers: 500,
+    status: "active",
+    color: "#D4A017",
+    icon: "Zap",
+    myPlace: 14,
+    description: "Еженедельный турнир по слотам. Зарабатывай очки за каждую ставку и борись за главный приз!",
+  },
+  {
+    id: 2,
+    name: "Ночь рулетки",
+    game: "Рулетка",
+    prize: "250 000 ₽",
+    prizeRaw: 250000,
+    start: "19.04.2026 22:00",
+    end: "20.04.2026 06:00",
+    players: 89,
+    maxPlayers: 200,
+    status: "active",
+    color: "#2ECC71",
+    icon: "Circle",
+    myPlace: null,
+    description: "Ночной турнир только для рулетки. Максимальный выигрыш удваивается. Присоединяйся прямо сейчас!",
+  },
+  {
+    id: 3,
+    name: "Покерный клуб",
+    game: "Покер",
+    prize: "1 000 000 ₽",
+    prizeRaw: 1000000,
+    start: "01.05.2026 12:00",
+    end: "07.05.2026 23:59",
+    players: 0,
+    maxPlayers: 1000,
+    status: "upcoming",
+    color: "#9B59B6",
+    icon: "Layers",
+    myPlace: null,
+    description: "Главный турнир мая! Первое место получает миллион. Регистрация уже открыта.",
+  },
+  {
+    id: 4,
+    name: "Блэкджек-экспресс",
+    game: "Блэкджек",
+    prize: "80 000 ₽",
+    prizeRaw: 80000,
+    start: "10.04.2026 10:00",
+    end: "17.04.2026 23:59",
+    players: 145,
+    maxPlayers: 150,
+    status: "finished",
+    color: "#3498DB",
+    icon: "CreditCard",
+    myPlace: 3,
+    description: "Завершённый турнир по блэкджеку.",
+  },
+];
+
+const tournamentLeaderboard: { place: number; name: string; score: number; prize: string; isMe?: boolean }[] = [
+  { place: 1, name: "Igor_K", score: 48200, prize: "200 000 ₽" },
+  { place: 2, name: "Lucky777", score: 41500, prize: "100 000 ₽" },
+  { place: 3, name: "PlanetX", score: 38900, prize: "50 000 ₽" },
+  { place: 4, name: "NightWolf", score: 31200, prize: "25 000 ₽" },
+  { place: 5, name: "SilverAce", score: 28800, prize: "15 000 ₽" },
+  { place: 14, name: "Вы", score: 9400, prize: "—", isMe: true },
 ];
 
 const historyData = [
@@ -116,9 +192,12 @@ export default function Index() {
     }, 3000);
   };
 
+  const [activeTournament, setActiveTournament] = useState<number | null>(null);
+
   const navItems: { id: Page; label: string; icon: string }[] = [
     { id: "home", label: "Главная", icon: "Home" },
     { id: "games", label: "Игры", icon: "Gamepad2" },
+    { id: "tournaments", label: "Турниры", icon: "Trophy" },
     { id: "deposit", label: "Депозит", icon: "ArrowDownCircle" },
     { id: "withdraw", label: "Вывод", icon: "ArrowUpCircle" },
     { id: "profile", label: "Профиль", icon: "User" },
@@ -519,6 +598,147 @@ export default function Index() {
               </div>
               <div style={{ fontSize: 12, color: "#6B7A8D", marginTop: 10 }}>До уровня Platinum: 2 200 очков</div>
             </div>
+          </div>
+        )}
+
+        {/* TOURNAMENTS */}
+        {page === "tournaments" && (
+          <div className="animate-fade-up">
+            {activeTournament === null ? (
+              <>
+                <div style={{ marginBottom: 28 }}>
+                  <h1 className="font-display" style={{ fontSize: 32, fontWeight: 500, color: "#fff" }}>ТУРНИРЫ</h1>
+                  <p style={{ color: "#6B7A8D", marginTop: 6 }}>Соревнуйтесь с другими игроками за крупные призы</p>
+                </div>
+
+                {/* Active banner */}
+                <div style={{ background: "linear-gradient(135deg, rgba(212,160,23,0.15), rgba(212,160,23,0.05))", border: "1px solid rgba(212,160,23,0.3)", borderRadius: 16, padding: "24px 28px", marginBottom: 28, display: "flex", alignItems: "center", gap: 24, cursor: "pointer" }} onClick={() => setActiveTournament(1)}>
+                  <div style={{ width: 56, height: 56, borderRadius: 14, background: "rgba(212,160,23,0.15)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <span style={{ fontSize: 28 }}>🏆</span>
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+                      <span className="font-display" style={{ fontSize: 18, color: "#F0C040", letterSpacing: "0.03em" }}>ЗОЛОТАЯ ЛИХОРАДКА</span>
+                      <span className="badge-live">LIVE</span>
+                    </div>
+                    <div style={{ fontSize: 13, color: "#8B9AAB" }}>Вы на 14-м месте · Призовой фонд: <span style={{ color: "#F0C040" }}>500 000 ₽</span></div>
+                    <div className="progress-bar" style={{ marginTop: 12, maxWidth: 300 }}>
+                      <div className="progress-fill" style={{ width: "62%" }} />
+                    </div>
+                    <div style={{ fontSize: 11, color: "#6B7A8D", marginTop: 5 }}>312 из 500 участников · Завершается 27.04</div>
+                  </div>
+                  <Icon name="ChevronRight" size={20} style={{ color: "#D4A017", flexShrink: 0 }} />
+                </div>
+
+                {/* Tournament grid */}
+                <div style={{ display: "grid", gap: 14 }}>
+                  {tournaments.map((t) => (
+                    <div key={t.id} className="game-card" style={{ display: "flex", alignItems: "stretch", cursor: t.status !== "finished" ? "pointer" : "default" }} onClick={() => t.status !== "finished" && setActiveTournament(t.id)}>
+                      <div style={{ width: 6, background: t.status === "active" ? t.color : t.status === "upcoming" ? "#3D4D60" : "#1C2532", borderRadius: "0 0 0 0", flexShrink: 0 }} />
+                      <div style={{ flex: 1, padding: "18px 20px", display: "flex", alignItems: "center", gap: 16 }}>
+                        <div style={{ width: 44, height: 44, borderRadius: 10, background: `${t.color}18`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          <Icon name={t.icon} size={20} style={{ color: t.color }} />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                            <span style={{ fontWeight: 600, color: "#D1D9E6", fontSize: 15 }}>{t.name}</span>
+                            {t.status === "active" && <span className="badge-live">LIVE</span>}
+                            {t.status === "upcoming" && <span style={{ fontSize: 10, background: "rgba(52,152,219,0.15)", color: "#3498DB", border: "1px solid rgba(52,152,219,0.25)", padding: "2px 8px", borderRadius: 999, fontWeight: 600 }}>СКОРО</span>}
+                            {t.status === "finished" && <span style={{ fontSize: 10, background: "rgba(107,122,141,0.15)", color: "#6B7A8D", border: "1px solid #1C2532", padding: "2px 8px", borderRadius: 999, fontWeight: 600 }}>ЗАВЕРШЁН</span>}
+                          </div>
+                          <div style={{ fontSize: 12, color: "#6B7A8D" }}>{t.game} · {t.players} участников · {t.status === "upcoming" ? `Старт ${t.start}` : `До ${t.end.split(" ")[0]}`}</div>
+                          {t.myPlace && t.status !== "upcoming" && (
+                            <div style={{ fontSize: 12, color: "#D4A017", marginTop: 4 }}>Ваше место: #{t.myPlace}</div>
+                          )}
+                        </div>
+                        <div style={{ textAlign: "right", flexShrink: 0 }}>
+                          <div className="font-display" style={{ fontSize: 18, color: t.status === "finished" ? "#6B7A8D" : "#F0C040", fontWeight: 500 }}>{t.prize}</div>
+                          <div style={{ fontSize: 11, color: "#3D4D60", marginTop: 2 }}>призовой фонд</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              /* Tournament detail */
+              (() => {
+                const t = tournaments.find(x => x.id === activeTournament)!;
+                return (
+                  <div style={{ maxWidth: 640 }}>
+                    <button onClick={() => setActiveTournament(null)} style={{ background: "none", border: "none", color: "#6B7A8D", cursor: "pointer", fontSize: 14, marginBottom: 20, display: "flex", alignItems: "center", gap: 6 }}>
+                      <Icon name="ArrowLeft" size={14} /> Все турниры
+                    </button>
+
+                    {/* Header */}
+                    <div style={{ background: `linear-gradient(135deg, ${t.color}18, ${t.color}06)`, border: `1px solid ${t.color}33`, borderRadius: 16, padding: "28px", marginBottom: 20 }}>
+                      <div style={{ display: "flex", alignItems: "flex-start", gap: 16, marginBottom: 16 }}>
+                        <div style={{ width: 52, height: 52, borderRadius: 12, background: `${t.color}20`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          <Icon name={t.icon} size={24} style={{ color: t.color }} />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                            <h1 className="font-display" style={{ fontSize: 22, color: "#fff", fontWeight: 500 }}>{t.name.toUpperCase()}</h1>
+                            {t.status === "active" && <span className="badge-live">LIVE</span>}
+                            {t.status === "upcoming" && <span style={{ fontSize: 10, background: "rgba(52,152,219,0.15)", color: "#3498DB", border: "1px solid rgba(52,152,219,0.25)", padding: "2px 8px", borderRadius: 999, fontWeight: 600 }}>СКОРО</span>}
+                          </div>
+                          <p style={{ fontSize: 14, color: "#8B9AAB", lineHeight: 1.6 }}>{t.description}</p>
+                        </div>
+                      </div>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+                        {[
+                          { label: "Призовой фонд", value: t.prize, icon: "Trophy" },
+                          { label: "Участники", value: `${t.players} / ${t.maxPlayers}`, icon: "Users" },
+                          { label: t.status === "upcoming" ? "Старт" : "Конец", value: (t.status === "upcoming" ? t.start : t.end).split(" ")[0], icon: "Calendar" },
+                        ].map((s) => (
+                          <div key={s.label} style={{ background: "rgba(0,0,0,0.3)", borderRadius: 10, padding: "12px 14px" }}>
+                            <div style={{ fontSize: 11, color: "#6B7A8D", marginBottom: 6, display: "flex", alignItems: "center", gap: 5 }}>
+                              <Icon name={s.icon} size={12} /> {s.label}
+                            </div>
+                            <div className="font-display" style={{ fontSize: 16, color: "#fff", fontWeight: 500 }}>{s.value}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Leaderboard */}
+                    {t.status !== "upcoming" && (
+                      <div style={{ background: "#0D1117", border: "1px solid #1C2532", borderRadius: 14, overflow: "hidden", marginBottom: 16 }}>
+                        <div style={{ padding: "14px 20px", borderBottom: "1px solid #1C2532", display: "flex", alignItems: "center", gap: 8 }}>
+                          <Icon name="BarChart2" size={15} style={{ color: "#D4A017" }} />
+                          <span className="font-display" style={{ fontSize: 13, color: "#D4A017", letterSpacing: "0.06em" }}>ТАБЛИЦА ЛИДЕРОВ</span>
+                        </div>
+                        {tournamentLeaderboard.map((row, i) => (
+                          <div key={row.place} style={{ display: "flex", alignItems: "center", padding: "13px 20px", borderBottom: i < tournamentLeaderboard.length - 1 ? "1px solid #1C2532" : "none", background: row.isMe ? "rgba(212,160,23,0.06)" : "transparent" }}>
+                            <div style={{ width: 28, fontFamily: "Oswald, sans-serif", fontSize: 14, color: row.place <= 3 ? ["#F0C040", "#C0C0C0", "#CD7F32"][row.place - 1] : "#6B7A8D", fontWeight: 600 }}>
+                              #{row.place}
+                            </div>
+                            <div style={{ flex: 1, fontSize: 14, color: row.isMe ? "#F0C040" : "#D1D9E6", fontWeight: row.isMe ? 600 : 400 }}>
+                              {row.name} {row.isMe && "👤"}
+                            </div>
+                            <div style={{ fontSize: 13, color: "#6B7A8D", marginRight: 20 }}>{row.score.toLocaleString("ru-RU")} очков</div>
+                            <div style={{ fontSize: 13, color: row.place <= 3 ? "#F0C040" : "#6B7A8D", fontWeight: 500 }}>{row.prize}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* CTA */}
+                    {t.status === "active" && (
+                      <button className="gold-btn" style={{ width: "100%", padding: 14, border: "none", borderRadius: 10, cursor: "pointer", fontSize: 15, fontFamily: "Oswald, sans-serif", letterSpacing: "0.06em" }}
+                        onClick={() => { setPage("games"); setActiveTournament(null); }}>
+                        ИГРАТЬ В ТУРНИРЕ
+                      </button>
+                    )}
+                    {t.status === "upcoming" && (
+                      <button className="gold-btn" style={{ width: "100%", padding: 14, border: "none", borderRadius: 10, cursor: "pointer", fontSize: 15, fontFamily: "Oswald, sans-serif", letterSpacing: "0.06em" }}>
+                        ЗАРЕГИСТРИРОВАТЬСЯ
+                      </button>
+                    )}
+                  </div>
+                );
+              })()
+            )}
           </div>
         )}
 
