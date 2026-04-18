@@ -31,6 +31,7 @@ const games = [
   { id: 8, name: "Кейсы", category: "Кейсы", icon: "Package", badge: "NEW", color: "#A855F7", players: 543 },
   { id: 9, name: "Дайс", category: "Кости", icon: "Dice6", badge: null, color: "#F59E0B", players: 312 },
   { id: 10, name: "Кено", category: "Лотерея", icon: "Hash", badge: "NEW", color: "#06B6D4", players: 198 },
+  { id: 11, name: "Хило", category: "Карты", icon: "ArrowUpDown", badge: "HOT", color: "#F472B6", players: 441 },
 ];
 
 interface CaseItem {
@@ -621,6 +622,96 @@ export default function Index() {
         setKenoRunning(false);
       }
     }, 120);
+  };
+
+  // HiLo game state
+  const SUITS = ["♠", "♥", "♦", "♣"];
+  const RANKS = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
+  const RED_SUITS = ["♥", "♦"];
+
+  const randomCard = () => ({
+    rank: RANKS[Math.floor(Math.random() * RANKS.length)],
+    suit: SUITS[Math.floor(Math.random() * SUITS.length)],
+    value: 0,
+  });
+  const cardValue = (rank: string) => RANKS.indexOf(rank) + 1;
+
+  const [hiloBet, setHiloBet] = useState("300");
+  const [hiloCard, setHiloCard] = useState<{ rank: string; suit: string } | null>(null);
+  const [hiloNextCard, setHiloNextCard] = useState<{ rank: string; suit: string } | null>(null);
+  const [hiloMultiplier, setHiloMultiplier] = useState(1);
+  const [hiloState, setHiloState] = useState<"idle" | "playing" | "won" | "lost">("idle");
+  const [hiloStreak, setHiloStreak] = useState(0);
+  const [hiloHistory, setHiloHistory] = useState<{ card: string; guess: string; correct: boolean }[]>([]);
+  const [hiloFlipping, setHiloFlipping] = useState(false);
+  const [hiloGuess, setHiloGuess] = useState<"higher" | "lower" | null>(null);
+
+  const startHilo = () => {
+    if (balance < Number(hiloBet) || Number(hiloBet) < 10) return;
+    setBalance(b => b - Number(hiloBet));
+    const card = randomCard();
+    setHiloCard(card);
+    setHiloNextCard(null);
+    setHiloMultiplier(1);
+    setHiloStreak(0);
+    setHiloHistory([]);
+    setHiloState("playing");
+    setHiloGuess(null);
+  };
+
+  const makeGuess = (guess: "higher" | "lower") => {
+    if (!hiloCard || hiloState !== "playing" || hiloFlipping) return;
+    setHiloGuess(guess);
+    setHiloFlipping(true);
+    const next = randomCard();
+    const curVal = cardValue(hiloCard.rank);
+    const nextVal = cardValue(next.rank);
+
+    setTimeout(() => {
+      setHiloNextCard(next);
+      const correct =
+        (guess === "higher" && nextVal > curVal) ||
+        (guess === "lower" && nextVal < curVal);
+      const isTie = nextVal === curVal;
+
+      setTimeout(() => {
+        setHiloFlipping(false);
+        setHiloHistory(h => [{ card: `${next.rank}${next.suit}`, guess: guess === "higher" ? "↑" : "↓", correct: correct && !isTie }, ...h]);
+
+        if (isTie) {
+          // tie - push, keep playing
+          setHiloCard(next);
+          setHiloNextCard(null);
+          setHiloGuess(null);
+        } else if (correct) {
+          const newMult = Math.round((hiloMultiplier * 1.5) * 100) / 100;
+          setHiloMultiplier(newMult);
+          setHiloStreak(s => s + 1);
+          setHiloCard(next);
+          setHiloNextCard(null);
+          setHiloGuess(null);
+        } else {
+          setHiloState("lost");
+        }
+      }, 600);
+    }, 400);
+  };
+
+  const cashoutHilo = () => {
+    if (hiloState !== "playing" || hiloStreak === 0) return;
+    const win = Math.floor(Number(hiloBet) * hiloMultiplier);
+    setBalance(b => b + win);
+    setHiloState("won");
+  };
+
+  const resetHilo = () => {
+    setHiloState("idle");
+    setHiloCard(null);
+    setHiloNextCard(null);
+    setHiloMultiplier(1);
+    setHiloStreak(0);
+    setHiloHistory([]);
+    setHiloGuess(null);
   };
 
   const [activeTournament, setActiveTournament] = useState<number | null>(null);
@@ -1377,7 +1468,163 @@ export default function Index() {
                   </div>
                 )}
 
-                {!["Слоты: Удача", "Слоты: Космос", "Рулетка", "Краш", "Кейсы", "Дайс", "Кено"].includes(activeGame) && (
+                {activeGame === "Хило" && (
+                  <div style={{ maxWidth: 480, margin: "0 auto" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 6 }}>
+                      <h2 className="font-display" style={{ fontSize: 24, color: "#fff" }}>ХИЛО</h2>
+                      <span className="badge-hot">HOT</span>
+                    </div>
+                    <p style={{ color: "#6B7A8D", fontSize: 13, marginBottom: 22 }}>Угадай — следующая карта будет выше или ниже? Набирай множитель и забирай выигрыш</p>
+
+                    {/* Multiplier & streak bar */}
+                    {hiloState === "playing" && (
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 20 }}>
+                        {[
+                          { label: "Множитель", value: `×${hiloMultiplier.toFixed(2)}`, color: "#F472B6" },
+                          { label: "Серия", value: `${hiloStreak} побед`, color: "#F0C040" },
+                          { label: "Выигрыш", value: `${Math.floor(Number(hiloBet) * hiloMultiplier).toLocaleString("ru-RU")} ₽`, color: "#2ECC71" },
+                        ].map(s => (
+                          <div key={s.label} style={{ background: "#0D1117", border: "1px solid #1C2532", borderRadius: 10, padding: "12px", textAlign: "center" }}>
+                            <div style={{ fontSize: 10, color: "#3D4D60", letterSpacing: "0.07em", marginBottom: 4 }}>{s.label.toUpperCase()}</div>
+                            <div className="font-display" style={{ fontSize: 15, color: s.color }}>{s.value}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Card arena */}
+                    <div style={{ background: "#080C10", border: "1px solid #1C2532", borderRadius: 16, padding: "32px 24px", marginBottom: 20, minHeight: 240, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 20, position: "relative" }}>
+
+                      {hiloState === "idle" && (
+                        <div style={{ textAlign: "center" }}>
+                          <div style={{ fontSize: 64, marginBottom: 12, opacity: 0.3 }}>🃏</div>
+                          <p style={{ color: "#3D4D60", fontSize: 14 }}>Сделайте ставку и начните игру</p>
+                        </div>
+                      )}
+
+                      {(hiloState === "playing" || hiloState === "won" || hiloState === "lost") && hiloCard && (
+                        <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
+                          {/* Current card */}
+                          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+                            <div style={{ fontSize: 11, color: "#6B7A8D", letterSpacing: "0.08em" }}>ТЕКУЩАЯ</div>
+                            <div style={{
+                              width: 80, height: 112, borderRadius: 12, background: "#1C2532",
+                              border: "2px solid #2C3A4A", display: "flex", flexDirection: "column",
+                              alignItems: "center", justifyContent: "center", gap: 4,
+                              boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
+                            }}>
+                              <span className="font-display" style={{ fontSize: 28, color: RED_SUITS.includes(hiloCard.suit) ? "#F87171" : "#D1D9E6", fontWeight: 700, lineHeight: 1 }}>{hiloCard.rank}</span>
+                              <span style={{ fontSize: 22, color: RED_SUITS.includes(hiloCard.suit) ? "#F87171" : "#D1D9E6" }}>{hiloCard.suit}</span>
+                            </div>
+                          </div>
+
+                          {/* Arrow */}
+                          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+                            <Icon name={hiloGuess === "higher" ? "ArrowUp" : hiloGuess === "lower" ? "ArrowDown" : "ArrowRight"} size={28} style={{ color: hiloGuess ? "#F472B6" : "#1C2532" }} />
+                          </div>
+
+                          {/* Next card */}
+                          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+                            <div style={{ fontSize: 11, color: "#6B7A8D", letterSpacing: "0.08em" }}>СЛЕДУЮЩАЯ</div>
+                            <div style={{
+                              width: 80, height: 112, borderRadius: 12,
+                              background: hiloNextCard ? "#1C2532" : "#141B24",
+                              border: `2px solid ${hiloState === "lost" ? "#E74C3C" : hiloState === "won" ? "#2ECC71" : hiloNextCard ? "#F472B6" : "#1C2532"}`,
+                              display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4,
+                              boxShadow: hiloNextCard ? `0 8px 24px rgba(244,114,182,0.2)` : "none",
+                              transition: "all 0.3s ease",
+                            }}>
+                              {hiloNextCard ? (
+                                <>
+                                  <span className="font-display" style={{ fontSize: 28, color: RED_SUITS.includes(hiloNextCard.suit) ? "#F87171" : "#D1D9E6", fontWeight: 700, lineHeight: 1 }}>{hiloNextCard.rank}</span>
+                                  <span style={{ fontSize: 22, color: RED_SUITS.includes(hiloNextCard.suit) ? "#F87171" : "#D1D9E6" }}>{hiloNextCard.suit}</span>
+                                </>
+                              ) : (
+                                <span style={{ fontSize: 32, opacity: 0.2 }}>?</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Result overlay */}
+                      {hiloState === "won" && (
+                        <div style={{ textAlign: "center", animation: "fadeUp 0.3s ease" }}>
+                          <div className="font-display" style={{ fontSize: 20, color: "#2ECC71" }}>🎉 ВЫИГРЫШ!</div>
+                          <div className="font-display" style={{ fontSize: 28, color: "#2ECC71", marginTop: 4 }}>+{Math.floor(Number(hiloBet) * hiloMultiplier).toLocaleString("ru-RU")} ₽</div>
+                        </div>
+                      )}
+                      {hiloState === "lost" && (
+                        <div style={{ textAlign: "center", animation: "fadeUp 0.3s ease" }}>
+                          <div className="font-display" style={{ fontSize: 20, color: "#E74C3C" }}>💥 ПРОИГРЫШ</div>
+                          <div style={{ fontSize: 13, color: "#6B7A8D", marginTop: 4 }}>Серия: {hiloStreak} побед · Множитель был ×{hiloMultiplier.toFixed(2)}</div>
+                        </div>
+                      )}
+
+                      {/* History */}
+                      {hiloHistory.length > 0 && (
+                        <div style={{ display: "flex", gap: 5, flexWrap: "wrap" as const, justifyContent: "center" }}>
+                          {hiloHistory.slice(0, 8).map((h, i) => (
+                            <span key={i} style={{ fontSize: 12, padding: "2px 8px", borderRadius: 6, background: h.correct ? "rgba(46,204,113,0.12)" : "rgba(231,76,60,0.12)", color: h.correct ? "#2ECC71" : "#E74C3C", border: `1px solid ${h.correct ? "rgba(46,204,113,0.3)" : "rgba(231,76,60,0.3)"}`, fontFamily: "Oswald, sans-serif" }}>
+                              {h.card} {h.guess}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Controls */}
+                    <div style={{ background: "#0D1117", border: "1px solid #1C2532", borderRadius: 14, padding: 20 }}>
+                      {hiloState === "idle" && (
+                        <>
+                          <label style={{ fontSize: 12, color: "#6B7A8D", marginBottom: 8, display: "block", letterSpacing: "0.06em" }}>СТАВКА (₽)</label>
+                          <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+                            <input className="input-dark" value={hiloBet} onChange={e => setHiloBet(e.target.value)} type="number" style={{ flex: 1, fontSize: 18, fontFamily: "Oswald, sans-serif", color: "#F0C040" }} />
+                          </div>
+                          <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
+                            {["100", "300", "1000", "5000"].map(a => (
+                              <button key={a} onClick={() => setHiloBet(a)} style={{ flex: 1, background: hiloBet === a ? "rgba(244,114,182,0.12)" : "#141B24", border: `1px solid ${hiloBet === a ? "#F472B6" : "#1C2532"}`, borderRadius: 8, padding: "8px 0", color: hiloBet === a ? "#F472B6" : "#6B7A8D", fontSize: 12, cursor: "pointer", fontFamily: "Oswald, sans-serif" }}>
+                                {Number(a).toLocaleString("ru-RU")}
+                              </button>
+                            ))}
+                          </div>
+                          <button className="gold-btn" onClick={startHilo} disabled={balance < Number(hiloBet) || Number(hiloBet) < 10} style={{ width: "100%", padding: 14, border: "none", borderRadius: 10, cursor: "pointer", fontSize: 16, fontFamily: "Oswald, sans-serif", letterSpacing: "0.06em", opacity: balance < Number(hiloBet) ? 0.5 : 1 }}>
+                            🃏 НАЧАТЬ — {Number(hiloBet).toLocaleString("ru-RU")} ₽
+                          </button>
+                        </>
+                      )}
+
+                      {hiloState === "playing" && (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                            <button onClick={() => makeGuess("higher")} disabled={hiloFlipping} style={{ padding: "16px", border: "2px solid rgba(46,204,113,0.4)", borderRadius: 12, background: "rgba(46,204,113,0.1)", color: "#2ECC71", cursor: hiloFlipping ? "not-allowed" : "pointer", fontFamily: "Oswald, sans-serif", fontSize: 16, letterSpacing: "0.06em", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, transition: "all 0.15s" }}>
+                              <Icon name="ArrowUp" size={20} /> ВЫШЕ
+                            </button>
+                            <button onClick={() => makeGuess("lower")} disabled={hiloFlipping} style={{ padding: "16px", border: "2px solid rgba(231,76,60,0.4)", borderRadius: 12, background: "rgba(231,76,60,0.1)", color: "#E74C3C", cursor: hiloFlipping ? "not-allowed" : "pointer", fontFamily: "Oswald, sans-serif", fontSize: 16, letterSpacing: "0.06em", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, transition: "all 0.15s" }}>
+                              <Icon name="ArrowDown" size={20} /> НИЖЕ
+                            </button>
+                          </div>
+                          <button onClick={cashoutHilo} disabled={hiloStreak === 0 || hiloFlipping} style={{ padding: "13px", border: `2px solid ${hiloStreak > 0 ? "#F0C040" : "#1C2532"}`, borderRadius: 12, background: hiloStreak > 0 ? "rgba(212,160,23,0.12)" : "#141B24", color: hiloStreak > 0 ? "#F0C040" : "#3D4D60", cursor: hiloStreak > 0 ? "pointer" : "not-allowed", fontFamily: "Oswald, sans-serif", fontSize: 14, letterSpacing: "0.06em", transition: "all 0.15s" }}>
+                            💰 ЗАБРАТЬ — {Math.floor(Number(hiloBet) * hiloMultiplier).toLocaleString("ru-RU")} ₽
+                          </button>
+                        </div>
+                      )}
+
+                      {(hiloState === "won" || hiloState === "lost") && (
+                        <button className="gold-btn" onClick={resetHilo} style={{ width: "100%", padding: 14, border: "none", borderRadius: 10, cursor: "pointer", fontSize: 16, fontFamily: "Oswald, sans-serif", letterSpacing: "0.06em" }}>
+                          ИГРАТЬ СНОВА
+                        </button>
+                      )}
+
+                      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 14, paddingTop: 14, borderTop: "1px solid #1C2532" }}>
+                        <span style={{ fontSize: 12, color: "#6B7A8D" }}>Баланс</span>
+                        <span className="font-display" style={{ fontSize: 14, color: "#F0C040" }}>{balance.toLocaleString("ru-RU")} ₽</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {!["Слоты: Удача", "Слоты: Космос", "Рулетка", "Краш", "Кейсы", "Дайс", "Кено", "Хило"].includes(activeGame) && (
                   <div style={{ maxWidth: 420, margin: "0 auto", textAlign: "center" }}>
                     <h2 className="font-display" style={{ fontSize: 24, color: "#fff", marginBottom: 8 }}>{activeGame.toUpperCase()}</h2>
                     <div style={{ background: "#0D1117", border: "1px solid #1C2532", borderRadius: 16, padding: "60px 24px" }}>
