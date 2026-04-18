@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import Icon from "@/components/ui/icon";
 
-type Page = "home" | "games" | "deposit" | "withdraw" | "profile" | "history" | "support" | "rules" | "tournaments" | "ranks";
+type Page = "home" | "games" | "deposit" | "withdraw" | "profile" | "history" | "support" | "rules" | "tournaments" | "ranks" | "bonuses";
 
 interface Message {
   from: "user" | "operator";
@@ -129,6 +129,117 @@ const ranks = [
   },
 ];
 
+const bonusesData = [
+  {
+    id: 1,
+    type: "welcome",
+    title: "Приветственный бонус",
+    subtitle: "+100% на первый депозит",
+    description: "Удвоим ваш первый депозит до 50 000 ₽. Вейджер x30. Действует 30 дней.",
+    icon: "🎁",
+    color: "#D4A017",
+    bgColor: "rgba(212,160,23,0.1)",
+    borderColor: "rgba(212,160,23,0.3)",
+    badge: "ТОЛЬКО РАЗ",
+    badgeColor: "#D4A017",
+    status: "available",
+    expires: null,
+    wager: 30,
+    maxAmount: "50 000 ₽",
+    minDeposit: "500 ₽",
+  },
+  {
+    id: 2,
+    type: "cashback",
+    title: "Еженедельный кэшбэк",
+    subtitle: "3% от проигрыша за неделю",
+    description: "Каждый понедельник возвращаем 3% от проигранной суммы за прошлую неделю. Без вейджера.",
+    icon: "💰",
+    color: "#2ECC71",
+    bgColor: "rgba(46,204,113,0.08)",
+    borderColor: "rgba(46,204,113,0.25)",
+    badge: "БЕЗ ВЕЙДЖЕРА",
+    badgeColor: "#2ECC71",
+    status: "active",
+    expires: "21.04.2026",
+    wager: 0,
+    maxAmount: "Без лимита",
+    minDeposit: "—",
+  },
+  {
+    id: 3,
+    type: "reload",
+    title: "Пятничный перезагруз",
+    subtitle: "+50% на депозит по пятницам",
+    description: "Каждую пятницу пополните счёт и получите 50% бонус до 20 000 ₽. Вейджер x20.",
+    icon: "🔄",
+    color: "#3498DB",
+    bgColor: "rgba(52,152,219,0.08)",
+    borderColor: "rgba(52,152,219,0.25)",
+    badge: "КАЖДУЮ ПЯТНИЦУ",
+    badgeColor: "#3498DB",
+    status: "available",
+    expires: "25.04.2026",
+    wager: 20,
+    maxAmount: "20 000 ₽",
+    minDeposit: "1 000 ₽",
+  },
+  {
+    id: 4,
+    type: "freespins",
+    title: "50 фриспинов",
+    subtitle: "Бесплатные вращения в слотах",
+    description: "50 фриспинов в игре «Слоты: Удача». Выигрыши без вейджера. Срок — 7 дней.",
+    icon: "🎰",
+    color: "#E67E22",
+    bgColor: "rgba(230,126,34,0.08)",
+    borderColor: "rgba(230,126,34,0.25)",
+    badge: "ФРИСПИНЫ",
+    badgeColor: "#E67E22",
+    status: "used",
+    expires: "15.04.2026",
+    wager: 0,
+    maxAmount: "50 спинов",
+    minDeposit: "—",
+  },
+  {
+    id: 5,
+    type: "vip",
+    title: "VIP-бонус месяца",
+    subtitle: "+150% и персональный менеджер",
+    description: "Эксклюзивный бонус для игроков ранга Золото и выше. Вейджер x15.",
+    icon: "👑",
+    color: "#9B59B6",
+    bgColor: "rgba(155,89,182,0.08)",
+    borderColor: "rgba(155,89,182,0.25)",
+    badge: "ТОЛЬКО VIP",
+    badgeColor: "#9B59B6",
+    status: "locked",
+    expires: null,
+    wager: 15,
+    maxAmount: "100 000 ₽",
+    minDeposit: "5 000 ₽",
+  },
+  {
+    id: 6,
+    type: "referral",
+    title: "Приведи друга",
+    subtitle: "+500 ₽ за каждого реферала",
+    description: "Поделитесь реферальной ссылкой. За каждого друга, который сделает депозит от 500 ₽, вы получите 500 ₽ на счёт.",
+    icon: "👥",
+    color: "#1ABC9C",
+    bgColor: "rgba(26,188,156,0.08)",
+    borderColor: "rgba(26,188,156,0.25)",
+    badge: "ПОСТОЯННЫЙ",
+    badgeColor: "#1ABC9C",
+    status: "available",
+    expires: null,
+    wager: 0,
+    maxAmount: "Без лимита",
+    minDeposit: "—",
+  },
+];
+
 const MY_POINTS = 2800;
 const MY_RANK_ID = 2;
 
@@ -229,12 +340,15 @@ export default function Index() {
   };
 
   const [activeTournament, setActiveTournament] = useState<number | null>(null);
+  const [bonusFilter, setBonusFilter] = useState<"all" | "available" | "active" | "used">("all");
+  const [activatedBonuses, setActivatedBonuses] = useState<number[]>([]);
 
   const navItems: { id: Page; label: string; icon: string }[] = [
     { id: "home", label: "Главная", icon: "Home" },
     { id: "games", label: "Игры", icon: "Gamepad2" },
     { id: "tournaments", label: "Турниры", icon: "Trophy" },
     { id: "ranks", label: "Ранги", icon: "Medal" },
+    { id: "bonuses", label: "Бонусы", icon: "Gift" },
     { id: "deposit", label: "Депозит", icon: "ArrowDownCircle" },
     { id: "withdraw", label: "Вывод", icon: "ArrowUpCircle" },
     { id: "profile", label: "Профиль", icon: "User" },
@@ -776,6 +890,125 @@ export default function Index() {
                 );
               })()
             )}
+          </div>
+        )}
+
+        {/* BONUSES */}
+        {page === "bonuses" && (
+          <div className="animate-fade-up">
+            <div style={{ marginBottom: 28 }}>
+              <h1 className="font-display" style={{ fontSize: 32, fontWeight: 500, color: "#fff" }}>БОНУСЫ</h1>
+              <p style={{ color: "#6B7A8D", marginTop: 6 }}>Акции и специальные предложения для вас</p>
+            </div>
+
+            {/* Active bonus progress */}
+            <div style={{ background: "linear-gradient(135deg, rgba(46,204,113,0.12), rgba(46,204,113,0.04))", border: "1px solid rgba(46,204,113,0.25)", borderRadius: 16, padding: "20px 24px", marginBottom: 28, display: "flex", alignItems: "center", gap: 20 }}>
+              <div style={{ width: 48, height: 48, borderRadius: 12, background: "rgba(46,204,113,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 }}>💰</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                  <span style={{ fontWeight: 600, color: "#D1D9E6", fontSize: 14 }}>Кэшбэк этой недели активен</span>
+                  <span style={{ fontSize: 10, background: "rgba(46,204,113,0.15)", color: "#2ECC71", border: "1px solid rgba(46,204,113,0.3)", padding: "2px 8px", borderRadius: 999, fontWeight: 600 }}>АКТИВЕН</span>
+                </div>
+                <div style={{ fontSize: 13, color: "#6B7A8D", marginBottom: 10 }}>Зачисление: понедельник 21.04 · Ваш проигрыш за неделю: 3 400 ₽</div>
+                <div className="progress-bar">
+                  <div className="progress-fill" style={{ width: "68%", background: "linear-gradient(90deg, #2ECC71, #1ABC9C)" }} />
+                </div>
+                <div style={{ fontSize: 11, color: "#6B7A8D", marginTop: 5 }}>Ожидаемый кэшбэк: <span style={{ color: "#2ECC71", fontWeight: 600 }}>102 ₽</span></div>
+              </div>
+            </div>
+
+            {/* Filter tabs */}
+            <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+              {([
+                { id: "all", label: "Все" },
+                { id: "available", label: "Доступны" },
+                { id: "active", label: "Активны" },
+                { id: "used", label: "Использованы" },
+              ] as const).map((f) => (
+                <button key={f.id} onClick={() => setBonusFilter(f.id)} style={{ background: bonusFilter === f.id ? "rgba(212,160,23,0.15)" : "#141B24", border: `1px solid ${bonusFilter === f.id ? "#D4A017" : "#1C2532"}`, borderRadius: 8, padding: "8px 16px", color: bonusFilter === f.id ? "#F0C040" : "#6B7A8D", fontSize: 13, cursor: "pointer", fontWeight: 500, transition: "all 0.15s" }}>
+                  {f.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Bonus cards */}
+            <div style={{ display: "grid", gap: 14 }}>
+              {bonusesData
+                .filter(b => bonusFilter === "all" || b.status === bonusFilter)
+                .map((bonus) => {
+                  const isActivated = activatedBonuses.includes(bonus.id);
+                  const statusLabel = isActivated ? "АКТИВИРОВАН" : bonus.status === "active" ? "АКТИВЕН" : bonus.status === "used" ? "ИСПОЛЬЗОВАН" : bonus.status === "locked" ? "ЗАБЛОКИРОВАН" : "ПОЛУЧИТЬ";
+                  const canActivate = bonus.status === "available" && !isActivated;
+                  return (
+                    <div key={bonus.id} style={{ background: bonus.status === "used" || bonus.status === "locked" ? "#0D1117" : bonus.bgColor, border: `1px solid ${bonus.status === "used" || bonus.status === "locked" ? "#1C2532" : bonus.borderColor}`, borderRadius: 16, overflow: "hidden", opacity: bonus.status === "used" || bonus.status === "locked" ? 0.6 : 1, transition: "all 0.2s" }}>
+                      <div style={{ padding: "20px 22px" }}>
+                        <div style={{ display: "flex", alignItems: "flex-start", gap: 16 }}>
+                          {/* Icon */}
+                          <div style={{ width: 52, height: 52, borderRadius: 14, background: bonus.bgColor, border: `1px solid ${bonus.borderColor}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, flexShrink: 0 }}>
+                            {bonus.icon}
+                          </div>
+
+                          {/* Content */}
+                          <div style={{ flex: 1 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" as const, marginBottom: 4 }}>
+                              <span style={{ fontWeight: 600, color: "#D1D9E6", fontSize: 15 }}>{bonus.title}</span>
+                              <span style={{ fontSize: 10, background: `${bonus.bgColor}`, color: bonus.badgeColor, border: `1px solid ${bonus.borderColor}`, padding: "2px 8px", borderRadius: 999, fontWeight: 600, whiteSpace: "nowrap" as const }}>{bonus.badge}</span>
+                            </div>
+                            <div className="font-display" style={{ fontSize: 16, color: bonus.color, marginBottom: 6, letterSpacing: "0.02em" }}>{bonus.subtitle}</div>
+                            <p style={{ fontSize: 13, color: "#8B9AAB", lineHeight: 1.6, marginBottom: 14 }}>{bonus.description}</p>
+
+                            {/* Details row */}
+                            <div style={{ display: "flex", gap: 16, marginBottom: 16, flexWrap: "wrap" as const }}>
+                              {[
+                                { label: "Макс. сумма", value: bonus.maxAmount },
+                                { label: "Мин. депозит", value: bonus.minDeposit },
+                                { label: "Вейджер", value: bonus.wager === 0 ? "Без вейджера" : `×${bonus.wager}` },
+                                ...(bonus.expires ? [{ label: "До", value: bonus.expires }] : []),
+                              ].map((detail) => (
+                                <div key={detail.label}>
+                                  <div style={{ fontSize: 10, color: "#3D4D60", letterSpacing: "0.06em", marginBottom: 2 }}>{detail.label.toUpperCase()}</div>
+                                  <div style={{ fontSize: 13, color: "#D1D9E6", fontWeight: 500 }}>{detail.value}</div>
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* Action button */}
+                            <button
+                              disabled={!canActivate}
+                              onClick={() => canActivate && setActivatedBonuses(prev => [...prev, bonus.id])}
+                              style={{
+                                background: isActivated ? "rgba(46,204,113,0.15)" : canActivate ? `linear-gradient(135deg, ${bonus.color}, ${bonus.color}dd)` : "#141B24",
+                                border: `1px solid ${isActivated ? "rgba(46,204,113,0.3)" : canActivate ? bonus.color : "#1C2532"}`,
+                                borderRadius: 10, padding: "10px 24px",
+                                color: isActivated ? "#2ECC71" : canActivate ? (bonus.color === "#D4A017" ? "#0A0E14" : "#fff") : "#6B7A8D",
+                                fontSize: 13, fontFamily: "Oswald, sans-serif", letterSpacing: "0.06em",
+                                cursor: canActivate ? "pointer" : "not-allowed",
+                                fontWeight: 600, transition: "all 0.2s",
+                              }}
+                            >
+                              {isActivated ? "✓ АКТИВИРОВАН" : statusLabel === "ЗАБЛОКИРОВАН" ? "🔒 НЕДОСТУПЕН" : statusLabel === "ИСПОЛЬЗОВАН" ? "ИСПОЛЬЗОВАН" : statusLabel === "АКТИВЕН" ? "✓ АКТИВЕН" : "АКТИВИРОВАТЬ"}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+
+            {/* Promo code */}
+            <div style={{ background: "#0D1117", border: "1px solid #1C2532", borderRadius: 14, padding: 24, marginTop: 20 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+                <Icon name="Tag" size={15} style={{ color: "#D4A017" }} />
+                <span className="font-display" style={{ fontSize: 13, color: "#D4A017", letterSpacing: "0.06em" }}>ПРОМОКОД</span>
+              </div>
+              <div style={{ display: "flex", gap: 10 }}>
+                <input className="input-dark" placeholder="Введите промокод" style={{ flex: 1 }} />
+                <button className="gold-btn" style={{ padding: "10px 20px", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontFamily: "Oswald, sans-serif", letterSpacing: "0.06em", whiteSpace: "nowrap" as const }}>
+                  ПРИМЕНИТЬ
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
