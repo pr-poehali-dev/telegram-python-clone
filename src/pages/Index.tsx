@@ -349,6 +349,9 @@ export default function Index() {
   const [slotSpinning, setSlotSpinning] = useState(false);
   const [rouletteNum, setRouletteNum] = useState<number | null>(null);
   const [rouletteSpinning, setRouletteSpinning] = useState(false);
+  const [rouletteBet, setRouletteBet] = useState("200");
+  const [rouletteMultiplier, setRouletteMultiplier] = useState<number | null>(null);
+  const [rouletteWin, setRouletteWin] = useState<number | null>(null);
   const [depositAmount, setDepositAmount] = useState("");
   const [depositMethod, setDepositMethod] = useState("");
   const [sbpCopied, setSbpCopied] = useState(false);
@@ -404,15 +407,42 @@ export default function Index() {
     }, 80);
   };
 
+  // Рулетка: секторы с множителями
+  // x2 — 40% (числа 1–14), x3 — 30% (15–24), x5 — 20% (25–31), x50 — 10% (32–36), 0 — зеро (0)
+  const ROULETTE_SECTORS = [
+    { label: "x2", mult: 2, color: "#2ECC71", range: [1, 14] },
+    { label: "x3", mult: 3, color: "#3498DB", range: [15, 24] },
+    { label: "x5", mult: 5, color: "#9B59B6", range: [25, 31] },
+    { label: "x50", mult: 50, color: "#F0C040", range: [32, 36] },
+  ];
+  const getRouletteMultiplier = (num: number) => {
+    if (num === 0) return null;
+    for (const s of ROULETTE_SECTORS) {
+      if (num >= s.range[0] && num <= s.range[1]) return s;
+    }
+    return null;
+  };
   const spinRoulette = () => {
-    if (rouletteSpinning || balance < 200) return;
-    setBalance((b) => b - 200);
+    const bet = parseInt(rouletteBet) || 0;
+    if (rouletteSpinning || bet < 10 || balance < bet) return;
+    setBalance((b) => b - bet);
     setRouletteSpinning(true);
+    setRouletteWin(null);
+    setRouletteMultiplier(null);
     setTimeout(() => {
       const num = Math.floor(Math.random() * 37);
       setRouletteNum(num);
       setRouletteSpinning(false);
-      if (num > 18) setBalance((b) => b + 400);
+      const sector = getRouletteMultiplier(num);
+      if (sector) {
+        const win = bet * sector.mult;
+        setRouletteMultiplier(sector.mult);
+        setRouletteWin(win);
+        setBalance((b) => b + win);
+      } else {
+        setRouletteMultiplier(null);
+        setRouletteWin(0);
+      }
     }, 3000);
   };
 
@@ -1157,26 +1187,103 @@ export default function Index() {
                 )}
 
                 {activeGame === "Рулетка" && (
-                  <div style={{ maxWidth: 420, margin: "0 auto", textAlign: "center" }}>
-                    <h2 className="font-display" style={{ fontSize: 24, color: "#fff", marginBottom: 8 }}>РУЛЕТКА</h2>
-                    <p style={{ color: "#6B7A8D", marginBottom: 28, fontSize: 13 }}>Ставка: 200 ₽ · Число 19–36 = удвоение</p>
-                    <div style={{ background: "#0D1117", border: "1px solid #1C2532", borderRadius: 16, padding: "36px 24px", marginBottom: 24 }}>
-                      <div style={{ width: 140, height: 140, borderRadius: "50%", margin: "0 auto 24px", background: `conic-gradient(${Array.from({ length: 18 }, (_, i) => `#1a5c1a ${(i * 2 / 36) * 360}deg ${((i * 2 + 1) / 36) * 360}deg, #8B0000 ${((i * 2 + 1) / 36) * 360}deg ${((i * 2 + 2) / 36) * 360}deg`).join(", ")})`, border: "3px solid #D4A017", display: "flex", alignItems: "center", justifyContent: "center", transition: rouletteSpinning ? "transform 3s cubic-bezier(0.17,0.67,0.12,0.99)" : "none", transform: rouletteSpinning ? "rotate(1800deg)" : "rotate(0deg)" }}>
-                        <div style={{ width: 50, height: 50, borderRadius: "50%", background: "#0D1117", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                          <span className="font-display" style={{ fontSize: 20, color: "#F0C040", fontWeight: 600 }}>
-                            {rouletteNum !== null ? rouletteNum : "?"}
-                          </span>
+                  <div style={{ maxWidth: 440, margin: "0 auto", textAlign: "center" }}>
+                    <h2 className="font-display" style={{ fontSize: 24, color: "#fff", marginBottom: 4 }}>РУЛЕТКА</h2>
+                    <p style={{ color: "#6B7A8D", marginBottom: 20, fontSize: 13 }}>Выбери множитель и поставь сумму</p>
+
+                    {/* Секторы-множители */}
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 20 }}>
+                      {[
+                        { label: "x2", mult: 2, color: "#2ECC71", chance: "40%" },
+                        { label: "x3", mult: 3, color: "#3498DB", chance: "30%" },
+                        { label: "x5", mult: 5, color: "#9B59B6", chance: "20%" },
+                        { label: "x50", mult: 50, color: "#F0C040", chance: "10%" },
+                      ].map((s) => (
+                        <div key={s.mult} style={{ background: "#0D1117", border: `1px solid ${s.color}33`, borderRadius: 10, padding: "10px 6px" }}>
+                          <div className="font-display" style={{ fontSize: 20, color: s.color, fontWeight: 700 }}>{s.label}</div>
+                          <div style={{ fontSize: 11, color: "#6B7A8D", marginTop: 2 }}>{s.chance}</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Колесо */}
+                    <div style={{ background: "#0D1117", border: "1px solid #1C2532", borderRadius: 16, padding: "28px 24px", marginBottom: 20 }}>
+                      <div style={{
+                        width: 150, height: 150, borderRadius: "50%", margin: "0 auto 20px",
+                        background: `conic-gradient(
+                          #2ECC71 0deg 144deg,
+                          #3498DB 144deg 252deg,
+                          #9B59B6 252deg 324deg,
+                          #F0C040 324deg 356deg,
+                          #1C2532 356deg 360deg
+                        )`,
+                        border: "4px solid #D4A017",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        transition: rouletteSpinning ? "transform 3s cubic-bezier(0.17,0.67,0.12,0.99)" : "none",
+                        transform: rouletteSpinning ? "rotate(1800deg)" : "rotate(0deg)"
+                      }}>
+                        <div style={{ width: 56, height: 56, borderRadius: "50%", background: "#0D1117", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column" as const }}>
+                          {rouletteSpinning ? (
+                            <span style={{ fontSize: 22, color: "#F0C040" }}>...</span>
+                          ) : rouletteNum !== null ? (
+                            <>
+                              <span className="font-display" style={{ fontSize: 11, color: "#6B7A8D", lineHeight: 1 }}>№{rouletteNum}</span>
+                              <span className="font-display" style={{ fontSize: rouletteMultiplier === 50 ? 13 : 16, color: rouletteWin === 0 ? "#E74C3C" : rouletteNum === 0 ? "#F0C040" : [2,3,5,50].includes(rouletteMultiplier ?? 0) ? ["#2ECC71","#2ECC71","#3498DB","#3498DB","#9B59B6","#F0C040"][([2,3,5,50].indexOf(rouletteMultiplier ?? 0))] : "#fff", fontWeight: 700 }}>
+                                {rouletteNum === 0 ? "0" : rouletteMultiplier ? `x${rouletteMultiplier}` : "—"}
+                              </span>
+                            </>
+                          ) : (
+                            <span className="font-display" style={{ fontSize: 22, color: "#F0C040" }}>?</span>
+                          )}
                         </div>
                       </div>
+
+                      {/* Результат */}
                       {rouletteNum !== null && !rouletteSpinning && (
-                        <div style={{ fontSize: 14, color: rouletteNum > 18 ? "#2ECC71" : rouletteNum === 0 ? "#F0C040" : "#E74C3C", marginBottom: 8 }}>
-                          {rouletteNum === 0 ? "Зеро!" : rouletteNum > 18 ? "+400 ₽ — Победа!" : "Попробуйте ещё раз"}
+                        <div style={{ marginBottom: 12 }}>
+                          {rouletteNum === 0 ? (
+                            <div style={{ fontSize: 15, color: "#F0C040", fontFamily: "Oswald, sans-serif" }}>ЗЕРО — ставка сгорает</div>
+                          ) : rouletteWin && rouletteWin > 0 ? (
+                            <div style={{ fontSize: 15, color: "#2ECC71", fontFamily: "Oswald, sans-serif" }}>
+                              +{rouletteWin.toLocaleString("ru-RU")} ₽ — x{rouletteMultiplier}!
+                            </div>
+                          ) : (
+                            <div style={{ fontSize: 15, color: "#E74C3C", fontFamily: "Oswald, sans-serif" }}>Не повезло — попробуй ещё</div>
+                          )}
                         </div>
                       )}
+
                       <div style={{ fontSize: 13, color: "#6B7A8D" }}>Баланс: <span style={{ color: "#F0C040" }}>{balance.toLocaleString("ru-RU")} ₽</span></div>
                     </div>
-                    <button className="gold-btn" onClick={spinRoulette} disabled={rouletteSpinning || balance < 200} style={{ width: "100%", padding: "14px", border: "none", borderRadius: 10, cursor: rouletteSpinning || balance < 200 ? "not-allowed" : "pointer", fontSize: 15, fontFamily: "Oswald, sans-serif", letterSpacing: "0.06em", opacity: balance < 200 ? 0.5 : 1 }}>
-                      {rouletteSpinning ? "КРУТИМ..." : "СТАВИТЬ — 200 ₽"}
+
+                    {/* Поле ввода ставки */}
+                    <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+                      <input
+                        type="number"
+                        min="10"
+                        value={rouletteBet}
+                        onChange={(e) => setRouletteBet(e.target.value)}
+                        placeholder="Сумма ставки"
+                        disabled={rouletteSpinning}
+                        style={{ flex: 1, background: "#0D1117", border: "1px solid #1C2532", borderRadius: 10, padding: "12px 16px", color: "#fff", fontSize: 15, fontFamily: "Oswald, sans-serif", outline: "none" }}
+                      />
+                      <div style={{ display: "flex", gap: 4 }}>
+                        {[100, 500, 1000].map(v => (
+                          <button key={v} onClick={() => setRouletteBet(String(v))} disabled={rouletteSpinning}
+                            style={{ background: "#1C2532", border: "none", borderRadius: 8, padding: "0 10px", color: "#8A9BB0", fontSize: 12, fontFamily: "Oswald, sans-serif", cursor: "pointer" }}>
+                            {v >= 1000 ? "1К" : v}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <button
+                      className="gold-btn"
+                      onClick={spinRoulette}
+                      disabled={rouletteSpinning || (parseInt(rouletteBet) || 0) < 10 || balance < (parseInt(rouletteBet) || 0)}
+                      style={{ width: "100%", padding: "14px", border: "none", borderRadius: 10, cursor: "pointer", fontSize: 15, fontFamily: "Oswald, sans-serif", letterSpacing: "0.06em", opacity: (rouletteSpinning || (parseInt(rouletteBet) || 0) < 10 || balance < (parseInt(rouletteBet) || 0)) ? 0.5 : 1 }}
+                    >
+                      {rouletteSpinning ? "КРУТИМ..." : `ПОСТАВИТЬ ${(parseInt(rouletteBet) || 0).toLocaleString("ru-RU")} ₽`}
                     </button>
                   </div>
                 )}
