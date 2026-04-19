@@ -32,6 +32,7 @@ const games = [
   { id: 9, name: "Дайс", category: "Кости", icon: "Dice6", badge: null, color: "#F59E0B", players: 312 },
   { id: 10, name: "Кено", category: "Лотерея", icon: "Hash", badge: "NEW", color: "#06B6D4", players: 198 },
   { id: 11, name: "Хило", category: "Карты", icon: "ArrowUpDown", badge: "HOT", color: "#F472B6", players: 441 },
+  { id: 12, name: "Мины", category: "Arcade", icon: "Bomb", badge: "NEW", color: "#EF4444", players: 326 },
 ];
 
 interface CaseItem {
@@ -712,6 +713,89 @@ export default function Index() {
     setHiloStreak(0);
     setHiloHistory([]);
     setHiloGuess(null);
+  };
+
+  // Mines game state
+  const MINES_SIZE = 25;
+  const [minesBet, setMinesBet] = useState("300");
+  const [minesCount, setMinesCount] = useState(3);
+  const [minesState, setMinesState] = useState<"idle" | "playing" | "won" | "lost">("idle");
+  const [minesField, setMinesField] = useState<("hidden" | "gem" | "mine")[]>(Array(MINES_SIZE).fill("hidden"));
+  const [minesMinePositions, setMinesMinePositions] = useState<number[]>([]);
+  const [minesRevealed, setMinesRevealed] = useState<number[]>([]);
+  const [minesMultiplier, setMinesMultiplier] = useState(1);
+  const [minesHistory, setMinesHistory] = useState<{ gems: number; mult: number; won: boolean; profit: string }[]>([]);
+
+  const calcMinesMultiplier = (gems: number, mines: number) => {
+    const safe = MINES_SIZE - mines;
+    let mult = 1;
+    for (let i = 0; i < gems; i++) {
+      mult *= (safe - i) / (MINES_SIZE - i);
+    }
+    return Math.round((0.97 / mult) * 100) / 100;
+  };
+
+  const startMines = () => {
+    if (balance < Number(minesBet) || Number(minesBet) < 10) return;
+    setBalance(b => b - Number(minesBet));
+    const positions: number[] = [];
+    while (positions.length < minesCount) {
+      const pos = Math.floor(Math.random() * MINES_SIZE);
+      if (!positions.includes(pos)) positions.push(pos);
+    }
+    setMinesMinePositions(positions);
+    setMinesField(Array(MINES_SIZE).fill("hidden"));
+    setMinesRevealed([]);
+    setMinesMultiplier(1);
+    setMinesState("playing");
+  };
+
+  const revealMinesCell = (idx: number) => {
+    if (minesState !== "playing" || minesField[idx] !== "hidden") return;
+    const isMine = minesMinePositions.includes(idx);
+    if (isMine) {
+      const revealed = minesMinePositions.reduce((acc, pos) => {
+        acc[pos] = "mine";
+        return acc;
+      }, [...minesField] as ("hidden" | "gem" | "mine")[]);
+      setMinesField(revealed);
+      setMinesState("lost");
+      const gems = minesRevealed.length;
+      setMinesHistory(h => [{ gems, mult: minesMultiplier, won: false, profit: `-${Number(minesBet).toLocaleString("ru-RU")} ₽` }, ...h.slice(0, 9)]);
+    } else {
+      const newRevealed = [...minesRevealed, idx];
+      const newField = [...minesField] as ("hidden" | "gem" | "mine")[];
+      newField[idx] = "gem";
+      const newMult = calcMinesMultiplier(newRevealed.length, minesCount);
+      setMinesField(newField);
+      setMinesRevealed(newRevealed);
+      setMinesMultiplier(newMult);
+      if (newRevealed.length === MINES_SIZE - minesCount) {
+        const win = Math.floor(Number(minesBet) * newMult);
+        setBalance(b => b + win);
+        setMinesState("won");
+        setMinesHistory(h => [{ gems: newRevealed.length, mult: newMult, won: true, profit: `+${win.toLocaleString("ru-RU")} ₽` }, ...h.slice(0, 9)]);
+      }
+    }
+  };
+
+  const cashoutMines = () => {
+    if (minesState !== "playing" || minesRevealed.length === 0) return;
+    const win = Math.floor(Number(minesBet) * minesMultiplier);
+    setBalance(b => b + win);
+    const revealedAll = [...minesField] as ("hidden" | "gem" | "mine")[];
+    minesMinePositions.forEach(pos => { revealedAll[pos] = "mine"; });
+    setMinesField(revealedAll);
+    setMinesState("won");
+    setMinesHistory(h => [{ gems: minesRevealed.length, mult: minesMultiplier, won: true, profit: `+${win.toLocaleString("ru-RU")} ₽` }, ...h.slice(0, 9)]);
+  };
+
+  const resetMines = () => {
+    setMinesState("idle");
+    setMinesField(Array(MINES_SIZE).fill("hidden"));
+    setMinesMinePositions([]);
+    setMinesRevealed([]);
+    setMinesMultiplier(1);
   };
 
   const [activeTournament, setActiveTournament] = useState<number | null>(null);
@@ -1624,7 +1708,159 @@ export default function Index() {
                   </div>
                 )}
 
-                {!["Слоты: Удача", "Слоты: Космос", "Рулетка", "Краш", "Кейсы", "Дайс", "Кено", "Хило"].includes(activeGame) && (
+                {/* MINES GAME */}
+                {activeGame === "Мины" && (
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: 20, maxWidth: 720, margin: "0 auto" }}>
+                    {/* Game field */}
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+                        <h2 className="font-display" style={{ fontSize: 22, color: "#fff" }}>МИНЫ</h2>
+                        {minesState === "playing" && (
+                          <div style={{ display: "flex", align: "center", gap: 10 }}>
+                            <span style={{ fontSize: 12, color: "#6B7A8D" }}>Открыто: <span style={{ color: "#2ECC71", fontWeight: 700 }}>{minesRevealed.length}</span></span>
+                            <span style={{ fontSize: 12, color: "#6B7A8D", marginLeft: 10 }}>Множитель: <span className="font-display" style={{ color: "#F0C040", fontSize: 14 }}>×{minesMultiplier.toFixed(2)}</span></span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 5x5 grid */}
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8 }}>
+                        {minesField.map((cell, idx) => {
+                          const isRevealed = cell !== "hidden";
+                          const isGem = cell === "gem";
+                          const isMineCell = cell === "mine";
+                          return (
+                            <button
+                              key={idx}
+                              onClick={() => revealMinesCell(idx)}
+                              disabled={minesState !== "playing" || isRevealed}
+                              style={{
+                                aspectRatio: "1",
+                                borderRadius: 12,
+                                border: `2px solid ${isMineCell ? "#EF4444" : isGem ? "#2ECC71" : minesState === "playing" ? "rgba(212,160,23,0.25)" : "#1C2532"}`,
+                                background: isMineCell ? "rgba(239,68,68,0.15)" : isGem ? "rgba(46,204,113,0.12)" : minesState === "playing" ? "#141B24" : "#0D1117",
+                                cursor: minesState === "playing" && !isRevealed ? "pointer" : "default",
+                                fontSize: 24,
+                                display: "flex", alignItems: "center", justifyContent: "center",
+                                transition: "all 0.15s",
+                                transform: isRevealed ? "scale(1.02)" : "scale(1)",
+                                boxShadow: isGem ? "0 0 12px rgba(46,204,113,0.3)" : isMineCell ? "0 0 12px rgba(239,68,68,0.3)" : "none",
+                              }}
+                            >
+                              {isGem ? "💎" : isMineCell ? "💣" : minesState === "idle" ? "" : ""}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {minesState === "won" && (
+                        <div style={{ textAlign: "center", marginTop: 16, animation: "fadeUp 0.3s ease" }}>
+                          <div className="font-display" style={{ fontSize: 20, color: "#2ECC71" }}>🎉 ВЫИГРЫШ!</div>
+                          <div className="font-display" style={{ fontSize: 26, color: "#2ECC71", marginTop: 4 }}>+{Math.floor(Number(minesBet) * minesMultiplier).toLocaleString("ru-RU")} ₽</div>
+                        </div>
+                      )}
+                      {minesState === "lost" && (
+                        <div style={{ textAlign: "center", marginTop: 16, animation: "fadeUp 0.3s ease" }}>
+                          <div className="font-display" style={{ fontSize: 20, color: "#EF4444" }}>💥 МИНА! ПРОИГРЫШ</div>
+                          <div style={{ fontSize: 13, color: "#6B7A8D", marginTop: 4 }}>Открыто клеток: {minesRevealed.length}</div>
+                        </div>
+                      )}
+
+                      {/* History */}
+                      {minesHistory.length > 0 && (
+                        <div style={{ marginTop: 16, display: "flex", gap: 6, flexWrap: "wrap" as const }}>
+                          {minesHistory.slice(0, 6).map((h, i) => (
+                            <span key={i} style={{ fontSize: 12, padding: "3px 10px", borderRadius: 6, background: h.won ? "rgba(46,204,113,0.1)" : "rgba(239,68,68,0.1)", color: h.won ? "#2ECC71" : "#EF4444", border: `1px solid ${h.won ? "rgba(46,204,113,0.3)" : "rgba(239,68,68,0.3)"}`, fontFamily: "Oswald, sans-serif" }}>
+                              {h.gems}💎 ×{h.mult.toFixed(2)} {h.profit}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Controls */}
+                    <div style={{ background: "#0D1117", border: "1px solid #1C2532", borderRadius: 14, padding: 20, display: "flex", flexDirection: "column", gap: 16, height: "fit-content" }}>
+                      {minesState === "idle" && (
+                        <>
+                          <div>
+                            <label style={{ fontSize: 12, color: "#6B7A8D", marginBottom: 8, display: "block", letterSpacing: "0.06em" }}>СТАВКА (₽)</label>
+                            <input className="input-dark" value={minesBet} onChange={e => setMinesBet(e.target.value)} type="number" style={{ width: "100%", fontSize: 18, fontFamily: "Oswald, sans-serif", color: "#F0C040" }} />
+                            <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                              {["100", "300", "1000", "5000"].map(a => (
+                                <button key={a} onClick={() => setMinesBet(a)} style={{ flex: 1, background: minesBet === a ? "rgba(239,68,68,0.12)" : "#141B24", border: `1px solid ${minesBet === a ? "#EF4444" : "#1C2532"}`, borderRadius: 8, padding: "6px 0", color: minesBet === a ? "#EF4444" : "#6B7A8D", fontSize: 11, cursor: "pointer", fontFamily: "Oswald, sans-serif" }}>
+                                  {Number(a).toLocaleString("ru-RU")}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div>
+                            <label style={{ fontSize: 12, color: "#6B7A8D", marginBottom: 8, display: "block", letterSpacing: "0.06em" }}>МИН НА ПОЛЕ</label>
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
+                              {[1, 3, 5, 10, 15, 20].map(n => (
+                                <button key={n} onClick={() => setMinesCount(n)} style={{ padding: "8px 0", borderRadius: 8, border: `1px solid ${minesCount === n ? "#EF4444" : "#1C2532"}`, background: minesCount === n ? "rgba(239,68,68,0.12)" : "#141B24", color: minesCount === n ? "#EF4444" : "#6B7A8D", fontSize: 13, cursor: "pointer", fontFamily: "Oswald, sans-serif" }}>
+                                  {n} 💣
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div style={{ background: "#141B24", border: "1px solid #1C2532", borderRadius: 10, padding: "10px 14px" }}>
+                            <div style={{ fontSize: 11, color: "#6B7A8D", marginBottom: 4 }}>Первый открытый множитель</div>
+                            <div className="font-display" style={{ fontSize: 18, color: "#F0C040" }}>×{calcMinesMultiplier(1, minesCount).toFixed(2)}</div>
+                          </div>
+
+                          <button
+                            className="gold-btn"
+                            onClick={startMines}
+                            disabled={balance < Number(minesBet) || Number(minesBet) < 10}
+                            style={{ width: "100%", padding: 14, border: "none", borderRadius: 10, cursor: "pointer", fontSize: 16, fontFamily: "Oswald, sans-serif", letterSpacing: "0.06em", opacity: balance < Number(minesBet) ? 0.5 : 1 }}
+                          >
+                            💣 СТАРТ — {Number(minesBet).toLocaleString("ru-RU")} ₽
+                          </button>
+                        </>
+                      )}
+
+                      {minesState === "playing" && (
+                        <>
+                          <div style={{ textAlign: "center" }}>
+                            <div style={{ fontSize: 12, color: "#6B7A8D", marginBottom: 4 }}>Текущий выигрыш</div>
+                            <div className="font-display" style={{ fontSize: 28, color: minesRevealed.length > 0 ? "#2ECC71" : "#3D4D60" }}>
+                              {minesRevealed.length > 0 ? `${Math.floor(Number(minesBet) * minesMultiplier).toLocaleString("ru-RU")} ₽` : "—"}
+                            </div>
+                            <div style={{ fontSize: 12, color: "#6B7A8D", marginTop: 4 }}>×{minesMultiplier.toFixed(2)}</div>
+                          </div>
+
+                          <div style={{ background: "#141B24", borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between" }}>
+                            <span style={{ fontSize: 12, color: "#6B7A8D" }}>Мин: <span style={{ color: "#EF4444", fontWeight: 700 }}>{minesCount}</span></span>
+                            <span style={{ fontSize: 12, color: "#6B7A8D" }}>Открыто: <span style={{ color: "#2ECC71", fontWeight: 700 }}>{minesRevealed.length}</span></span>
+                          </div>
+
+                          <button
+                            onClick={cashoutMines}
+                            disabled={minesRevealed.length === 0}
+                            style={{ width: "100%", padding: 14, border: `2px solid ${minesRevealed.length > 0 ? "#F0C040" : "#1C2532"}`, borderRadius: 10, background: minesRevealed.length > 0 ? "rgba(212,160,23,0.12)" : "#141B24", color: minesRevealed.length > 0 ? "#F0C040" : "#3D4D60", cursor: minesRevealed.length > 0 ? "pointer" : "not-allowed", fontSize: 15, fontFamily: "Oswald, sans-serif", letterSpacing: "0.06em", transition: "all 0.15s" }}
+                          >
+                            💰 ЗАБРАТЬ {minesRevealed.length > 0 ? `${Math.floor(Number(minesBet) * minesMultiplier).toLocaleString("ru-RU")} ₽` : ""}
+                          </button>
+                        </>
+                      )}
+
+                      {(minesState === "won" || minesState === "lost") && (
+                        <button className="gold-btn" onClick={resetMines} style={{ width: "100%", padding: 14, border: "none", borderRadius: 10, cursor: "pointer", fontSize: 16, fontFamily: "Oswald, sans-serif", letterSpacing: "0.06em" }}>
+                          ИГРАТЬ СНОВА
+                        </button>
+                      )}
+
+                      <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 14, borderTop: "1px solid #1C2532" }}>
+                        <span style={{ fontSize: 12, color: "#6B7A8D" }}>Баланс</span>
+                        <span className="font-display" style={{ fontSize: 14, color: "#F0C040" }}>{balance.toLocaleString("ru-RU")} ₽</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {!["Слоты: Удача", "Слоты: Космос", "Рулетка", "Краш", "Кейсы", "Дайс", "Кено", "Хило", "Мины"].includes(activeGame) && (
                   <div style={{ maxWidth: 420, margin: "0 auto", textAlign: "center" }}>
                     <h2 className="font-display" style={{ fontSize: 24, color: "#fff", marginBottom: 8 }}>{activeGame.toUpperCase()}</h2>
                     <div style={{ background: "#0D1117", border: "1px solid #1C2532", borderRadius: 16, padding: "60px 24px" }}>
