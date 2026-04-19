@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import Icon from "@/components/ui/icon";
+import BlackjackGame from "@/components/games/BlackjackGame";
 
 type Page = "home" | "games" | "deposit" | "withdraw" | "profile" | "history" | "support" | "rules" | "tournaments" | "ranks" | "bonuses";
 
@@ -1286,6 +1287,13 @@ export default function Index() {
                       {rouletteSpinning ? "КРУТИМ..." : `ПОСТАВИТЬ ${(parseInt(rouletteBet) || 0).toLocaleString("ru-RU")} ₽`}
                     </button>
                   </div>
+                )}
+
+                {activeGame === "Блэкджек" && (
+                  <BlackjackGame
+                    balance={balance}
+                    onBalanceChange={(delta) => setBalance((b) => b + delta)}
+                  />
                 )}
 
                 {activeGame === "Краш" && (
