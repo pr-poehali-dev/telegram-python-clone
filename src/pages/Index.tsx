@@ -1,6 +1,18 @@
 import { useState, useRef, useEffect } from "react";
 import Icon from "@/components/ui/icon";
 import BlackjackGame from "@/components/games/BlackjackGame";
+import AuthModal from "@/components/AuthModal";
+
+const AUTH_URL = "https://functions.poehali.dev/65956f1f-d89a-4964-bb46-54584865fac0";
+
+interface AuthUser {
+  id: number;
+  email?: string;
+  phone?: string;
+  name?: string;
+  avatar_url?: string;
+  balance: number;
+}
 
 type Page = "home" | "games" | "deposit" | "withdraw" | "profile" | "history" | "support" | "rules" | "tournaments" | "ranks" | "bonuses";
 
@@ -358,12 +370,72 @@ export default function Index() {
   const [sbpCopied, setSbpCopied] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [activeGame, setActiveGame] = useState<string | null>(null);
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
+  const [authToken, setAuthToken] = useState<string>(() => localStorage.getItem("auth_token") || "");
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const replyIdx = useRef(0);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, typing]);
+
+  useEffect(() => {
+    const token = localStorage.getItem("auth_token");
+    if (!token) return;
+    fetch(AUTH_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Session-Token": token },
+      body: JSON.stringify({ action: "me" }),
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.user) {
+          setAuthUser(data.user);
+          setAuthToken(token);
+          setBalance(Math.round(data.user.balance));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  function handleAuth(user: AuthUser, token: string) {
+    setAuthUser(user);
+    setAuthToken(token);
+    setBalance(Math.round(user.balance));
+    setShowAuthModal(false);
+  }
+
+  async function handleLogout() {
+    if (authToken) {
+      await fetch(AUTH_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Session-Token": authToken },
+        body: JSON.stringify({ action: "logout" }),
+      }).catch(() => {});
+    }
+    localStorage.removeItem("auth_token");
+    setAuthUser(null);
+    setAuthToken("");
+    setBalance(12450);
+  }
+
+  async function syncBalance(newBalance: number) {
+    if (!authToken) return;
+    await fetch(AUTH_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Session-Token": authToken },
+      body: JSON.stringify({ action: "balance", balance: newBalance }),
+    }).catch(() => {});
+  }
+
+  function setBalanceAndSync(val: number | ((prev: number) => number)) {
+    setBalance(prev => {
+      const next = typeof val === "function" ? val(prev) : val;
+      syncBalance(next);
+      return next;
+    });
+  }
 
   const sendMessage = () => {
     if (!chatInput.trim()) return;
@@ -381,7 +453,7 @@ export default function Index() {
 
   const spinSlots = () => {
     if (slotSpinning || balance < 100) return;
-    setBalance((b) => b - 100);
+    setBalanceAndSync((b) => b - 100);
     setSlotSpinning(true);
     const symbols = ["🍋", "⭐", "🍒", "🔔", "💎", "7️⃣"];
     let ticks = 0;
@@ -402,8 +474,8 @@ export default function Index() {
         const allSame = final.every((s) => s === final[0]);
         setSlotResult(final);
         setSlotSpinning(false);
-        if (allSame) setBalance((b) => b + 1000);
-        else if (final[0] === final[1] || final[1] === final[2]) setBalance((b) => b + 200);
+        if (allSame) setBalanceAndSync((b) => b + 1000);
+        else if (final[0] === final[1] || final[1] === final[2]) setBalanceAndSync((b) => b + 200);
       }
     }, 80);
   };
@@ -426,7 +498,7 @@ export default function Index() {
   const spinRoulette = () => {
     const bet = parseInt(rouletteBet) || 0;
     if (rouletteSpinning || bet < 10 || balance < bet) return;
-    setBalance((b) => b - bet);
+    setBalanceAndSync((b) => b - bet);
     setRouletteSpinning(true);
     setRouletteWin(null);
     setRouletteMultiplier(null);
@@ -439,7 +511,7 @@ export default function Index() {
         const win = bet * sector.mult;
         setRouletteMultiplier(sector.mult);
         setRouletteWin(win);
-        setBalance((b) => b + win);
+        setBalanceAndSync((b) => b + win);
       } else {
         setRouletteMultiplier(null);
         setRouletteWin(0);
@@ -1035,12 +1107,33 @@ export default function Index() {
           <div style={{ fontSize: 10, color: "#3D4D60", marginTop: 2, letterSpacing: "0.1em" }}>ОНЛАЙН КАЗИНО</div>
         </div>
 
-        <div style={{ margin: "16px 0", background: "rgba(212,160,23,0.08)", border: "1px solid rgba(212,160,23,0.2)", borderRadius: 10, padding: "12px 14px" }}>
-          <div style={{ fontSize: 10, color: "#6B7A8D", letterSpacing: "0.08em", marginBottom: 4 }}>БАЛАНС</div>
-          <div className="font-display" style={{ fontSize: 20, color: "#F0C040", fontWeight: 500 }}>
-            {balance.toLocaleString("ru-RU")} ₽
+        {authUser ? (
+          <div style={{ margin: "12px 0 4px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+              <div style={{ width: 32, height: 32, borderRadius: "50%", background: "linear-gradient(135deg, #D4A017, #F0C040)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <Icon name="User" size={15} style={{ color: "#0A0E14" }} />
+              </div>
+              <div style={{ overflow: "hidden" }}>
+                <div style={{ fontSize: 13, color: "#D1D9E6", fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{authUser.name || "Игрок"}</div>
+                <div style={{ fontSize: 10, color: "#6B7A8D", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{authUser.email || authUser.phone}</div>
+              </div>
+            </div>
+            <div style={{ background: "rgba(212,160,23,0.08)", border: "1px solid rgba(212,160,23,0.2)", borderRadius: 10, padding: "10px 14px", marginBottom: 4 }}>
+              <div style={{ fontSize: 10, color: "#6B7A8D", letterSpacing: "0.08em", marginBottom: 2 }}>БАЛАНС</div>
+              <div className="font-display" style={{ fontSize: 20, color: "#F0C040", fontWeight: 500 }}>{balance.toLocaleString("ru-RU")} ₽</div>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div style={{ margin: "12px 0" }}>
+            <button onClick={() => setShowAuthModal(true)} className="gold-btn" style={{ width: "100%", padding: "10px", border: "none", borderRadius: 10, cursor: "pointer", fontSize: 14, fontFamily: "Oswald, sans-serif", letterSpacing: "0.05em" }}>
+              ВОЙТИ / РЕГИСТРАЦИЯ
+            </button>
+            <div style={{ background: "rgba(212,160,23,0.08)", border: "1px solid rgba(212,160,23,0.2)", borderRadius: 10, padding: "10px 14px", marginTop: 8 }}>
+              <div style={{ fontSize: 10, color: "#6B7A8D", letterSpacing: "0.08em", marginBottom: 2 }}>ГОСТЕВОЙ БАЛАНС</div>
+              <div className="font-display" style={{ fontSize: 20, color: "#F0C040", fontWeight: 500 }}>{balance.toLocaleString("ru-RU")} ₽</div>
+            </div>
+          </div>
+        )}
 
         <nav style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2, paddingBottom: 20 }}>
           {navItems.map((item) => (
@@ -1055,11 +1148,21 @@ export default function Index() {
           ))}
         </nav>
 
-        <div style={{ padding: "16px 8px", borderTop: "1px solid #1C2532", display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#2ECC71" }} />
-          <span style={{ fontSize: 12, color: "#6B7A8D" }}>1 847 онлайн</span>
+        <div style={{ padding: "16px 8px", borderTop: "1px solid #1C2532" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: authUser ? 8 : 0 }}>
+            <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#2ECC71" }} />
+            <span style={{ fontSize: 12, color: "#6B7A8D" }}>1 847 онлайн</span>
+          </div>
+          {authUser && (
+            <button onClick={handleLogout} style={{ width: "100%", background: "rgba(231,76,60,0.08)", border: "1px solid rgba(231,76,60,0.2)", borderRadius: 8, padding: "8px", cursor: "pointer", fontSize: 12, color: "#E74C3C", fontFamily: "Oswald, sans-serif", letterSpacing: "0.04em" }}>
+              ВЫЙТИ
+            </button>
+          )}
         </div>
       </aside>
+
+      {/* Auth Modal */}
+      {showAuthModal && <AuthModal onAuth={handleAuth} onClose={() => setShowAuthModal(false)} />}
 
       {/* Main */}
       <main style={{ flex: 1, padding: "32px 36px", overflowY: "auto", maxHeight: "100vh" }}>
@@ -1292,7 +1395,7 @@ export default function Index() {
                 {activeGame === "Блэкджек" && (
                   <BlackjackGame
                     balance={balance}
-                    onBalanceChange={(delta) => setBalance((b) => b + delta)}
+                    onBalanceChange={(delta) => setBalanceAndSync((b) => b + delta)}
                   />
                 )}
 
@@ -2744,46 +2847,63 @@ export default function Index() {
           <div className="animate-fade-up" style={{ maxWidth: 520 }}>
             <h1 className="font-display" style={{ fontSize: 32, fontWeight: 500, color: "#fff", marginBottom: 32 }}>ПРОФИЛЬ</h1>
 
-            <div style={{ background: "#0D1117", border: "1px solid #1C2532", borderRadius: 14, padding: 28, marginBottom: 16 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 18, marginBottom: 28 }}>
-                <div style={{ width: 60, height: 60, borderRadius: "50%", background: "linear-gradient(135deg, #D4A017, #F0C040)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <Icon name="User" size={28} style={{ color: "#0A0E14" }} />
-                </div>
-                <div>
-                  <div style={{ fontSize: 18, fontWeight: 600, color: "#D1D9E6" }}>Игрок #48821</div>
-                  <div style={{ fontSize: 13, color: "#6B7A8D", marginTop: 3 }}>Зарегистрирован: 12 января 2026</div>
-                </div>
-                <div className="badge-hot" style={{ marginLeft: "auto" }}>VIP</div>
+            {!authUser ? (
+              <div style={{ background: "#0D1117", border: "1px solid #1C2532", borderRadius: 14, padding: 40, textAlign: "center" }}>
+                <div style={{ fontSize: 48, marginBottom: 16 }}>🔐</div>
+                <div style={{ fontSize: 18, color: "#D1D9E6", fontFamily: "Oswald, sans-serif", marginBottom: 8 }}>ВОЙДИТЕ В АККАУНТ</div>
+                <div style={{ fontSize: 13, color: "#6B7A8D", marginBottom: 24 }}>Чтобы сохранять баланс, историю игр и профиль</div>
+                <button onClick={() => setShowAuthModal(true)} className="gold-btn" style={{ padding: "12px 32px", border: "none", borderRadius: 10, cursor: "pointer", fontSize: 15, fontFamily: "Oswald, sans-serif", letterSpacing: "0.06em" }}>
+                  ВОЙТИ / РЕГИСТРАЦИЯ
+                </button>
               </div>
-
-              <div style={{ display: "grid", gap: 10 }}>
-                {[
-                  { label: "Имя", value: "Александр К.", icon: "User" },
-                  { label: "Email", value: "alex@example.com", icon: "Mail" },
-                  { label: "Телефон", value: "+7 (999) 123-45-67", icon: "Phone" },
-                ].map((f) => (
-                  <div key={f.label} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", background: "#141B24", borderRadius: 10 }}>
-                    <Icon name={f.icon} size={16} style={{ color: "#6B7A8D" }} />
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 11, color: "#3D4D60", marginBottom: 2 }}>{f.label}</div>
-                      <div style={{ fontSize: 14, color: "#D1D9E6" }}>{f.value}</div>
+            ) : (
+              <>
+                <div style={{ background: "#0D1117", border: "1px solid #1C2532", borderRadius: 14, padding: 28, marginBottom: 16 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 18, marginBottom: 28 }}>
+                    <div style={{ width: 60, height: 60, borderRadius: "50%", background: "linear-gradient(135deg, #D4A017, #F0C040)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <Icon name="User" size={28} style={{ color: "#0A0E14" }} />
                     </div>
-                    <Icon name="ChevronRight" size={14} style={{ color: "#3D4D60" }} />
+                    <div>
+                      <div style={{ fontSize: 18, fontWeight: 600, color: "#D1D9E6" }}>{authUser.name || "Игрок"}</div>
+                      <div style={{ fontSize: 13, color: "#6B7A8D", marginTop: 3 }}>ID #{authUser.id}</div>
+                    </div>
+                    <div style={{ marginLeft: "auto", background: "rgba(240,192,64,0.12)", border: "1px solid rgba(240,192,64,0.3)", borderRadius: 6, padding: "3px 10px", fontSize: 11, color: "#F0C040", fontFamily: "Oswald, sans-serif" }}>
+                      {balance >= 10000 ? "VIP" : "СТАНДАРТ"}
+                    </div>
                   </div>
-                ))}
-              </div>
-            </div>
 
-            <div style={{ background: "#0D1117", border: "1px solid #1C2532", borderRadius: 14, padding: 24 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
-                <span style={{ fontSize: 14, color: "#D1D9E6", fontWeight: 500 }}>Уровень VIP</span>
-                <span style={{ fontSize: 13, color: "#6B7A8D" }}>2 800 / 5 000 очков</span>
-              </div>
-              <div className="progress-bar">
-                <div className="progress-fill" style={{ width: "56%" }} />
-              </div>
-              <div style={{ fontSize: 12, color: "#6B7A8D", marginTop: 10 }}>До уровня Platinum: 2 200 очков</div>
-            </div>
+                  <div style={{ display: "grid", gap: 10 }}>
+                    {[
+                      { label: "Имя", value: authUser.name || "—", icon: "User" },
+                      { label: "Email", value: authUser.email || "—", icon: "Mail" },
+                      { label: "Телефон", value: authUser.phone || "—", icon: "Phone" },
+                      { label: "Баланс", value: `${balance.toLocaleString("ru-RU")} ₽`, icon: "Wallet" },
+                    ].map((f) => (
+                      <div key={f.label} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", background: "#141B24", borderRadius: 10 }}>
+                        <Icon name={f.icon} size={16} style={{ color: "#6B7A8D" }} />
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 11, color: "#3D4D60", marginBottom: 2 }}>{f.label}</div>
+                          <div style={{ fontSize: 14, color: "#D1D9E6" }}>{f.value}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{ background: "#0D1117", border: "1px solid #1C2532", borderRadius: 14, padding: 24 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
+                    <span style={{ fontSize: 14, color: "#D1D9E6", fontWeight: 500 }}>Уровень</span>
+                    <span style={{ fontSize: 13, color: "#6B7A8D" }}>{balance.toLocaleString("ru-RU")} / 50 000 ₽</span>
+                  </div>
+                  <div className="progress-bar">
+                    <div className="progress-fill" style={{ width: `${Math.min((balance / 50000) * 100, 100)}%` }} />
+                  </div>
+                  <div style={{ fontSize: 12, color: "#6B7A8D", marginTop: 10 }}>
+                    {balance >= 50000 ? "Максимальный уровень!" : `До VIP: ${(50000 - balance).toLocaleString("ru-RU")} ₽`}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         )}
 
