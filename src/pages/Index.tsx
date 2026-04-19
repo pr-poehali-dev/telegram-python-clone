@@ -35,6 +35,7 @@ const games = [
   { id: 12, name: "Мины", category: "Arcade", icon: "Bomb", badge: "NEW", color: "#EF4444", players: 326 },
   { id: 13, name: "Лесенка", category: "Карты", icon: "Stairs", badge: "NEW", color: "#F97316", players: 214 },
   { id: 14, name: "Монетка", category: "Arcade", icon: "CircleDollarSign", badge: "HOT", color: "#EAB308", players: 519 },
+  { id: 15, name: "Плинко", category: "Arcade", icon: "Layers", badge: "NEW", color: "#8B5CF6", players: 387 },
 ];
 
 interface CaseItem {
@@ -912,6 +913,62 @@ export default function Index() {
         ...h.slice(0, 14),
       ]);
     }, 1200);
+  };
+
+  // Plinko game state
+  const PLINKO_ROWS = 8;
+  const PLINKO_MULTIPLIERS = [10, 4, 2, 0.5, 0.2, 0.5, 2, 4, 10];
+  const [plinkoBet, setPlinkoBet] = useState("300");
+  const [plinkoRisk, setPlinkoRisk] = useState<"low" | "medium" | "high">("medium");
+  const [plinkoDropping, setPlinkoDropping] = useState(false);
+  const [plinkoBallPath, setPlinkoBallPath] = useState<number[]>([]);
+  const [plinkoLandedSlot, setPlinkoLandedSlot] = useState<number | null>(null);
+  const [plinkoResult, setPlinkoResult] = useState<{ mult: number; win: number } | null>(null);
+  const [plinkoHistory, setPlinkoHistory] = useState<{ slot: number; mult: number; won: boolean; profit: string }[]>([]);
+
+  const PLINKO_MULTS: Record<string, number[]> = {
+    low:    [3, 2, 1.5, 1.1, 0.5, 1.1, 1.5, 2, 3],
+    medium: [10, 4, 2, 0.5, 0.2, 0.5, 2, 4, 10],
+    high:   [25, 8, 3, 0.5, 0.1, 0.5, 3, 8, 25],
+  };
+
+  const dropPlinko = () => {
+    if (plinkoDropping || balance < Number(plinkoBet) || Number(plinkoBet) < 10) return;
+    setBalance(b => b - Number(plinkoBet));
+    setPlinkoDropping(true);
+    setPlinkoLandedSlot(null);
+    setPlinkoResult(null);
+
+    // Simulate ball path: each row ball goes left (0) or right (1)
+    const path: number[] = [];
+    let pos = 0;
+    for (let i = 0; i < PLINKO_ROWS; i++) {
+      const dir = Math.random() < 0.5 ? 0 : 1;
+      path.push(dir);
+      pos += dir;
+    }
+    setPlinkoBallPath([]);
+
+    // Animate step by step
+    let step = 0;
+    const interval = setInterval(() => {
+      setPlinkoBallPath(path.slice(0, step + 1));
+      step++;
+      if (step >= PLINKO_ROWS) {
+        clearInterval(interval);
+        const mults = PLINKO_MULTS[plinkoRisk];
+        const mult = mults[pos];
+        const win = Math.round(Number(plinkoBet) * mult);
+        setPlinkoLandedSlot(pos);
+        setPlinkoResult({ mult, win });
+        if (win > 0) setBalance(b => b + win);
+        setPlinkoDropping(false);
+        setPlinkoHistory(h => [{
+          slot: pos, mult, won: mult >= 1,
+          profit: win >= Number(plinkoBet) ? `+${(win - Number(plinkoBet)).toLocaleString("ru-RU")} ₽` : `-${(Number(plinkoBet) - win).toLocaleString("ru-RU")} ₽`,
+        }, ...h.slice(0, 14)]);
+      }
+    }, 160);
   };
 
   const [activeTournament, setActiveTournament] = useState<number | null>(null);
@@ -2286,7 +2343,133 @@ export default function Index() {
                   </div>
                 )}
 
-                {!["Слоты: Удача", "Слоты: Космос", "Рулетка", "Краш", "Кейсы", "Дайс", "Кено", "Хило", "Мины", "Лесенка", "Монетка"].includes(activeGame) && (
+                {/* PLINKO GAME */}
+                {activeGame === "Плинко" && (
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 260px", gap: 20, maxWidth: 720, margin: "0 auto" }}>
+                    {/* Board */}
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+                        <h2 className="font-display" style={{ fontSize: 22, color: "#fff" }}>ПЛИНКО</h2>
+                        {plinkoResult && !plinkoDropping && (
+                          <div className="font-display" style={{ fontSize: 15, color: plinkoResult.mult >= 1 ? "#2ECC71" : "#EF4444", animation: "fadeUp 0.3s ease" }}>
+                            ×{plinkoResult.mult} → {plinkoResult.win > 0 ? `+${plinkoResult.win.toLocaleString("ru-RU")} ₽` : "0 ₽"}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Plinko board */}
+                      <div style={{ background: "#0D1117", border: "1px solid #1C2532", borderRadius: 16, padding: "20px 16px", position: "relative" }}>
+                        {/* Rows of pegs */}
+                        {Array.from({ length: PLINKO_ROWS }).map((_, row) => {
+                          const pegsInRow = row + 2;
+                          const ballCol = plinkoBallPath.slice(0, row + 1).reduce((a, b) => a + b, 0);
+                          const isBallHere = plinkoDropping && plinkoBallPath.length === row + 1;
+                          const isBallPassed = plinkoBallPath.length > row + 1 || (!plinkoDropping && plinkoLandedSlot !== null);
+                          return (
+                            <div key={row} style={{ display: "flex", justifyContent: "center", gap: 0, marginBottom: 10, position: "relative" }}>
+                              {Array.from({ length: pegsInRow }).map((_, col) => {
+                                const isBallPeg = isBallHere && col === ballCol;
+                                return (
+                                  <div key={col} style={{ width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                    <div style={{
+                                      width: isBallPeg ? 20 : 8, height: isBallPeg ? 20 : 8,
+                                      borderRadius: "50%",
+                                      background: isBallPeg
+                                        ? "#8B5CF6"
+                                        : (isBallPassed && col === plinkoBallPath.slice(0, row + 1).reduce((a, b) => a + b, 0) && plinkoBallPath.length > row)
+                                          ? "rgba(139,92,246,0.5)"
+                                          : "#1C2532",
+                                      boxShadow: isBallPeg ? "0 0 12px rgba(139,92,246,0.8)" : "none",
+                                      transition: "all 0.15s",
+                                    }} />
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          );
+                        })}
+
+                        {/* Landing slots */}
+                        <div style={{ display: "flex", gap: 4, marginTop: 8 }}>
+                          {PLINKO_MULTS[plinkoRisk].map((m, i) => (
+                            <div key={i} style={{
+                              flex: 1, borderRadius: 8, padding: "8px 2px", textAlign: "center",
+                              background: plinkoLandedSlot === i
+                                ? m >= 1 ? "rgba(46,204,113,0.3)" : "rgba(239,68,68,0.2)"
+                                : m >= 2 ? "rgba(139,92,246,0.15)" : m >= 1 ? "rgba(139,92,246,0.08)" : "rgba(239,68,68,0.08)",
+                              border: `1px solid ${plinkoLandedSlot === i ? (m >= 1 ? "#2ECC71" : "#EF4444") : m >= 2 ? "rgba(139,92,246,0.4)" : "#1C2532"}`,
+                              transition: "all 0.3s",
+                            }}>
+                              <div className="font-display" style={{ fontSize: 10, color: m >= 2 ? "#C4B5FD" : m >= 1 ? "#8B9AAB" : "#6B7A8D" }}>×{m}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* History */}
+                      {plinkoHistory.length > 0 && (
+                        <div style={{ display: "flex", gap: 5, flexWrap: "wrap" as const, marginTop: 14 }}>
+                          {plinkoHistory.slice(0, 10).map((h, i) => (
+                            <span key={i} style={{ fontSize: 11, padding: "3px 9px", borderRadius: 6, background: h.won ? "rgba(46,204,113,0.1)" : "rgba(239,68,68,0.1)", color: h.won ? "#2ECC71" : "#EF4444", border: `1px solid ${h.won ? "rgba(46,204,113,0.3)" : "rgba(239,68,68,0.3)"}`, fontFamily: "Oswald, sans-serif" }}>
+                              ×{h.mult} {h.profit}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Controls */}
+                    <div style={{ background: "#0D1117", border: "1px solid #1C2532", borderRadius: 14, padding: 20, display: "flex", flexDirection: "column", gap: 16, height: "fit-content" }}>
+                      <div>
+                        <label style={{ fontSize: 12, color: "#6B7A8D", marginBottom: 8, display: "block", letterSpacing: "0.06em" }}>СТАВКА (₽)</label>
+                        <input className="input-dark" value={plinkoBet} onChange={e => setPlinkoBet(e.target.value)} type="number" style={{ width: "100%", fontSize: 18, fontFamily: "Oswald, sans-serif", color: "#F0C040" }} />
+                        <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                          {["100", "300", "1000", "5000"].map(a => (
+                            <button key={a} onClick={() => setPlinkoBet(a)} style={{ flex: 1, background: plinkoBet === a ? "rgba(139,92,246,0.12)" : "#141B24", border: `1px solid ${plinkoBet === a ? "#8B5CF6" : "#1C2532"}`, borderRadius: 8, padding: "6px 0", color: plinkoBet === a ? "#C4B5FD" : "#6B7A8D", fontSize: 11, cursor: "pointer", fontFamily: "Oswald, sans-serif" }}>
+                              {Number(a).toLocaleString("ru-RU")}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div>
+                        <label style={{ fontSize: 12, color: "#6B7A8D", marginBottom: 8, display: "block", letterSpacing: "0.06em" }}>РИСК</label>
+                        <div style={{ display: "flex", gap: 6 }}>
+                          {(["low", "medium", "high"] as const).map(r => (
+                            <button key={r} onClick={() => { setPlinkoRisk(r); setPlinkoLandedSlot(null); setPlinkoResult(null); setPlinkoBallPath([]); }} style={{ flex: 1, padding: "8px 0", borderRadius: 8, border: `1px solid ${plinkoRisk === r ? "#8B5CF6" : "#1C2532"}`, background: plinkoRisk === r ? "rgba(139,92,246,0.12)" : "#141B24", color: plinkoRisk === r ? "#C4B5FD" : "#6B7A8D", fontSize: 11, cursor: "pointer", fontFamily: "Oswald, sans-serif" }}>
+                              {r === "low" ? "LOW" : r === "medium" ? "MED" : "HIGH"}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div style={{ background: "#141B24", border: "1px solid #1C2532", borderRadius: 10, padding: "10px 14px" }}>
+                        <div style={{ fontSize: 11, color: "#6B7A8D", marginBottom: 6 }}>Множители ({plinkoRisk.toUpperCase()})</div>
+                        <div style={{ display: "flex", gap: 3, flexWrap: "wrap" as const }}>
+                          {PLINKO_MULTS[plinkoRisk].map((m, i) => (
+                            <span key={i} className="font-display" style={{ fontSize: 11, color: m >= 2 ? "#C4B5FD" : m >= 1 ? "#8B9AAB" : "#EF4444" }}>×{m}</span>
+                          ))}
+                        </div>
+                      </div>
+
+                      <button
+                        className="gold-btn"
+                        onClick={dropPlinko}
+                        disabled={plinkoDropping || balance < Number(plinkoBet) || Number(plinkoBet) < 10}
+                        style={{ width: "100%", padding: 14, border: "none", borderRadius: 10, cursor: plinkoDropping ? "not-allowed" : "pointer", fontSize: 16, fontFamily: "Oswald, sans-serif", letterSpacing: "0.06em", opacity: (plinkoDropping || balance < Number(plinkoBet)) ? 0.5 : 1 }}
+                      >
+                        {plinkoDropping ? "ПАДАЕТ..." : `🟣 БРОСИТЬ — ${Number(plinkoBet).toLocaleString("ru-RU")} ₽`}
+                      </button>
+
+                      <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 14, borderTop: "1px solid #1C2532" }}>
+                        <span style={{ fontSize: 12, color: "#6B7A8D" }}>Баланс</span>
+                        <span className="font-display" style={{ fontSize: 14, color: "#F0C040" }}>{balance.toLocaleString("ru-RU")} ₽</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {!["Слоты: Удача", "Слоты: Космос", "Рулетка", "Краш", "Кейсы", "Дайс", "Кено", "Хило", "Мины", "Лесенка", "Монетка", "Плинко"].includes(activeGame) && (
                   <div style={{ maxWidth: 420, margin: "0 auto", textAlign: "center" }}>
                     <h2 className="font-display" style={{ fontSize: 24, color: "#fff", marginBottom: 8 }}>{activeGame.toUpperCase()}</h2>
                     <div style={{ background: "#0D1117", border: "1px solid #1C2532", borderRadius: 16, padding: "60px 24px" }}>
