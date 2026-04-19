@@ -328,6 +328,24 @@ const bonusesData = [
     maxAmount: "Без лимита",
     minDeposit: "—",
   },
+  {
+    id: 7,
+    type: "telegram",
+    title: "Подписка на Telegram-канал",
+    subtitle: "+10 ₽ за подписку",
+    description: "Подпишитесь на наш официальный Telegram-канал и получите 10 ₽ на баланс. Бонус начисляется один раз.",
+    icon: "✈️",
+    color: "#2AABEE",
+    bgColor: "rgba(42,171,238,0.08)",
+    borderColor: "rgba(42,171,238,0.25)",
+    badge: "ОДИН РАЗ",
+    badgeColor: "#2AABEE",
+    status: "available",
+    expires: null,
+    wager: 0,
+    maxAmount: "10 ₽",
+    minDeposit: "—",
+  },
 ];
 
 const MY_POINTS = 2800;
@@ -1077,6 +1095,7 @@ export default function Index() {
   const [activeTournament, setActiveTournament] = useState<number | null>(null);
   const [bonusFilter, setBonusFilter] = useState<"all" | "available" | "active" | "used">("all");
   const [activatedBonuses, setActivatedBonuses] = useState<number[]>([]);
+  const [tgBonusStep, setTgBonusStep] = useState<"idle" | "waiting" | "claimed">("idle");
 
   const navItems: { id: Page; label: string; icon: string }[] = [
     { id: "home", label: "Главная", icon: "Home" },
@@ -3127,7 +3146,35 @@ export default function Index() {
                               ))}
                             </div>
 
-                            {/* Action button */}
+                            {/* Action button — Telegram special */}
+                            {bonus.type === "telegram" ? (
+                              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" as const }}>
+                                {tgBonusStep === "claimed" || isActivated ? (
+                                  <div style={{ background: "rgba(46,204,113,0.15)", border: "1px solid rgba(46,204,113,0.3)", borderRadius: 10, padding: "10px 24px", color: "#2ECC71", fontSize: 13, fontFamily: "Oswald, sans-serif", letterSpacing: "0.06em", fontWeight: 600 }}>
+                                    ✓ +10 ₽ НАЧИСЛЕНО
+                                  </div>
+                                ) : tgBonusStep === "waiting" ? (
+                                  <>
+                                    <a href="https://t.me/+QgiLIa1gFRY4Y2Iy" target="_blank" rel="noopener noreferrer"
+                                      style={{ background: "linear-gradient(135deg, #2AABEE, #229ED9)", border: "none", borderRadius: 10, padding: "10px 20px", color: "#fff", fontSize: 13, fontFamily: "Oswald, sans-serif", letterSpacing: "0.06em", fontWeight: 600, cursor: "pointer", textDecoration: "none", display: "inline-block" }}>
+                                      ✈️ ОТКРЫТЬ КАНАЛ
+                                    </a>
+                                    <button onClick={() => {
+                                      setTgBonusStep("claimed");
+                                      setActivatedBonuses(prev => [...prev, bonus.id]);
+                                      setBalanceAndSync(b => b + 10);
+                                    }} style={{ background: "rgba(42,171,238,0.12)", border: "1px solid rgba(42,171,238,0.3)", borderRadius: 10, padding: "10px 20px", color: "#2AABEE", fontSize: 13, fontFamily: "Oswald, sans-serif", letterSpacing: "0.06em", fontWeight: 600, cursor: "pointer" }}>
+                                      Я ПОДПИСАЛСЯ
+                                    </button>
+                                  </>
+                                ) : (
+                                  <button onClick={() => setTgBonusStep("waiting")}
+                                    style={{ background: "linear-gradient(135deg, #2AABEE, #229ED9)", border: "none", borderRadius: 10, padding: "10px 24px", color: "#fff", fontSize: 13, fontFamily: "Oswald, sans-serif", letterSpacing: "0.06em", fontWeight: 600, cursor: "pointer" }}>
+                                    ✈️ ПОДПИСАТЬСЯ И ПОЛУЧИТЬ 10 ₽
+                                  </button>
+                                )}
+                              </div>
+                            ) : (
                             <button
                               disabled={!canActivate}
                               onClick={() => canActivate && setActivatedBonuses(prev => [...prev, bonus.id])}
@@ -3143,6 +3190,7 @@ export default function Index() {
                             >
                               {isActivated ? "✓ АКТИВИРОВАН" : statusLabel === "ЗАБЛОКИРОВАН" ? "🔒 НЕДОСТУПЕН" : statusLabel === "ИСПОЛЬЗОВАН" ? "ИСПОЛЬЗОВАН" : statusLabel === "АКТИВЕН" ? "✓ АКТИВЕН" : "АКТИВИРОВАТЬ"}
                             </button>
+                            )}
                           </div>
                         </div>
                       </div>
