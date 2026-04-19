@@ -34,6 +34,7 @@ const games = [
   { id: 11, name: "Хило", category: "Карты", icon: "ArrowUpDown", badge: "HOT", color: "#F472B6", players: 441 },
   { id: 12, name: "Мины", category: "Arcade", icon: "Bomb", badge: "NEW", color: "#EF4444", players: 326 },
   { id: 13, name: "Лесенка", category: "Карты", icon: "Stairs", badge: "NEW", color: "#F97316", players: 214 },
+  { id: 14, name: "Монетка", category: "Arcade", icon: "CircleDollarSign", badge: "HOT", color: "#EAB308", players: 519 },
 ];
 
 interface CaseItem {
@@ -876,6 +877,41 @@ export default function Index() {
     setLadderState("idle");
     setLadderStep(0);
     setLadderCards([]);
+  };
+
+  // Coin flip game state
+  const [coinBet, setCoinBet] = useState("300");
+  const [coinSide, setCoinSide] = useState<"heads" | "tails">("heads");
+  const [coinFlipping, setCoinFlipping] = useState(false);
+  const [coinResult, setCoinResult] = useState<"heads" | "tails" | null>(null);
+  const [coinWon, setCoinWon] = useState<boolean | null>(null);
+  const [coinStreak, setCoinStreak] = useState(0);
+  const [coinHistory, setCoinHistory] = useState<{ side: "heads" | "tails"; result: "heads" | "tails"; won: boolean; profit: string }[]>([]);
+
+  const flipCoin = () => {
+    if (coinFlipping || balance < Number(coinBet) || Number(coinBet) < 10) return;
+    setBalance(b => b - Number(coinBet));
+    setCoinFlipping(true);
+    setCoinResult(null);
+    setCoinWon(null);
+    setTimeout(() => {
+      const result: "heads" | "tails" = Math.random() < 0.5 ? "heads" : "tails";
+      const won = result === coinSide;
+      const profit = won ? Math.floor(Number(coinBet) * 1.95) : 0;
+      setCoinResult(result);
+      setCoinWon(won);
+      setCoinFlipping(false);
+      if (won) {
+        setBalance(b => b + profit);
+        setCoinStreak(s => s + 1);
+      } else {
+        setCoinStreak(0);
+      }
+      setCoinHistory(h => [
+        { side: coinSide, result, won, profit: won ? `+${profit.toLocaleString("ru-RU")} ₽` : `-${Number(coinBet).toLocaleString("ru-RU")} ₽` },
+        ...h.slice(0, 14),
+      ]);
+    }, 1200);
   };
 
   const [activeTournament, setActiveTournament] = useState<number | null>(null);
@@ -2133,7 +2169,124 @@ export default function Index() {
                   </div>
                 )}
 
-                {!["Слоты: Удача", "Слоты: Космос", "Рулетка", "Краш", "Кейсы", "Дайс", "Кено", "Хило", "Мины", "Лесенка"].includes(activeGame) && (
+                {/* COIN FLIP GAME */}
+                {activeGame === "Монетка" && (
+                  <div style={{ maxWidth: 480, margin: "0 auto" }}>
+                    <h2 className="font-display" style={{ fontSize: 22, color: "#fff", marginBottom: 20 }}>МОНЕТКА</h2>
+
+                    {/* Coin visual */}
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 20, marginBottom: 28 }}>
+                      <div style={{
+                        width: 140, height: 140, borderRadius: "50%",
+                        background: coinFlipping
+                          ? "conic-gradient(#EAB308, #F59E0B, #CA8A04, #EAB308)"
+                          : coinResult === "heads"
+                            ? "radial-gradient(circle at 35% 35%, #FDE68A, #EAB308 60%, #92400E)"
+                            : coinResult === "tails"
+                              ? "radial-gradient(circle at 35% 35%, #E2E8F0, #94A3B8 60%, #334155)"
+                              : "radial-gradient(circle at 35% 35%, #FDE68A, #EAB308 60%, #92400E)",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: coinFlipping ? 28 : 48,
+                        boxShadow: coinResult && !coinFlipping
+                          ? coinWon ? "0 0 32px rgba(234,179,8,0.5)" : "0 0 20px rgba(0,0,0,0.5)"
+                          : "0 8px 32px rgba(234,179,8,0.25)",
+                        animation: coinFlipping ? "spin 0.4s linear infinite" : "none",
+                        transition: "all 0.4s ease",
+                        border: "4px solid rgba(234,179,8,0.4)",
+                      }}>
+                        {coinFlipping ? "🪙" : coinResult === "tails" ? "🦅" : "👑"}
+                      </div>
+
+                      {/* Result text */}
+                      {!coinFlipping && coinResult && (
+                        <div style={{ textAlign: "center", animation: "fadeUp 0.3s ease" }}>
+                          <div className="font-display" style={{ fontSize: 16, color: "#6B7A8D", letterSpacing: "0.08em", marginBottom: 4 }}>
+                            {coinResult === "heads" ? "ОРЁЛ" : "РЕШКА"}
+                          </div>
+                          {coinWon ? (
+                            <div className="font-display" style={{ fontSize: 28, color: "#2ECC71" }}>
+                              +{Math.floor(Number(coinBet) * 1.95).toLocaleString("ru-RU")} ₽
+                            </div>
+                          ) : (
+                            <div className="font-display" style={{ fontSize: 22, color: "#EF4444" }}>Проигрыш</div>
+                          )}
+                          {coinStreak >= 2 && coinWon && (
+                            <div style={{ fontSize: 12, color: "#F0C040", marginTop: 4 }}>🔥 Серия: {coinStreak} побед!</div>
+                          )}
+                        </div>
+                      )}
+                      {coinFlipping && (
+                        <div className="font-display" style={{ fontSize: 14, color: "#EAB308", letterSpacing: "0.08em" }}>БРОСАЮ...</div>
+                      )}
+                    </div>
+
+                    {/* Side choice */}
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+                      {(["heads", "tails"] as const).map(s => (
+                        <button
+                          key={s}
+                          onClick={() => setCoinSide(s)}
+                          disabled={coinFlipping}
+                          style={{
+                            padding: "18px", borderRadius: 14,
+                            border: `2px solid ${coinSide === s ? "#EAB308" : "#1C2532"}`,
+                            background: coinSide === s ? "rgba(234,179,8,0.12)" : "#0D1117",
+                            color: coinSide === s ? "#FDE68A" : "#6B7A8D",
+                            cursor: coinFlipping ? "not-allowed" : "pointer",
+                            fontFamily: "Oswald, sans-serif", fontSize: 18, letterSpacing: "0.06em",
+                            display: "flex", flexDirection: "column", alignItems: "center", gap: 6,
+                            transition: "all 0.15s",
+                          }}
+                        >
+                          <span style={{ fontSize: 32 }}>{s === "heads" ? "👑" : "🦅"}</span>
+                          {s === "heads" ? "ОРЁЛ" : "РЕШКА"}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Bet + play */}
+                    <div style={{ background: "#0D1117", border: "1px solid #1C2532", borderRadius: 14, padding: 20, marginBottom: 16 }}>
+                      <label style={{ fontSize: 12, color: "#6B7A8D", marginBottom: 8, display: "block", letterSpacing: "0.06em" }}>СТАВКА (₽)</label>
+                      <input className="input-dark" value={coinBet} onChange={e => setCoinBet(e.target.value)} type="number" style={{ width: "100%", fontSize: 18, fontFamily: "Oswald, sans-serif", color: "#F0C040", marginBottom: 10 }} />
+                      <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
+                        {["100", "300", "1000", "5000"].map(a => (
+                          <button key={a} onClick={() => setCoinBet(a)} style={{ flex: 1, background: coinBet === a ? "rgba(234,179,8,0.12)" : "#141B24", border: `1px solid ${coinBet === a ? "#EAB308" : "#1C2532"}`, borderRadius: 8, padding: "7px 0", color: coinBet === a ? "#EAB308" : "#6B7A8D", fontSize: 11, cursor: "pointer", fontFamily: "Oswald, sans-serif" }}>
+                            {Number(a).toLocaleString("ru-RU")}
+                          </button>
+                        ))}
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#6B7A8D", marginBottom: 14 }}>
+                        <span>Выплата при победе</span>
+                        <span className="font-display" style={{ color: "#2ECC71" }}>×1.95 = {Math.floor(Number(coinBet) * 1.95).toLocaleString("ru-RU")} ₽</span>
+                      </div>
+                      <button
+                        className="gold-btn"
+                        onClick={flipCoin}
+                        disabled={coinFlipping || balance < Number(coinBet) || Number(coinBet) < 10}
+                        style={{ width: "100%", padding: 14, border: "none", borderRadius: 10, cursor: coinFlipping ? "not-allowed" : "pointer", fontSize: 16, fontFamily: "Oswald, sans-serif", letterSpacing: "0.06em", opacity: (coinFlipping || balance < Number(coinBet)) ? 0.5 : 1 }}
+                      >
+                        🪙 БРОСИТЬ — {Number(coinBet).toLocaleString("ru-RU")} ₽
+                      </button>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 14, paddingTop: 14, borderTop: "1px solid #1C2532" }}>
+                        <span style={{ fontSize: 12, color: "#6B7A8D" }}>Баланс</span>
+                        <span className="font-display" style={{ fontSize: 14, color: "#F0C040" }}>{balance.toLocaleString("ru-RU")} ₽</span>
+                      </div>
+                    </div>
+
+                    {/* History */}
+                    {coinHistory.length > 0 && (
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" as const }}>
+                        {coinHistory.map((h, i) => (
+                          <span key={i} style={{ fontSize: 12, padding: "3px 10px", borderRadius: 20, background: h.won ? "rgba(46,204,113,0.1)" : "rgba(239,68,68,0.08)", color: h.won ? "#2ECC71" : "#EF4444", border: `1px solid ${h.won ? "rgba(46,204,113,0.3)" : "rgba(239,68,68,0.25)"}`, fontFamily: "Oswald, sans-serif" }}>
+                            {h.result === "heads" ? "👑" : "🦅"} {h.won ? "✓" : "✗"}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {!["Слоты: Удача", "Слоты: Космос", "Рулетка", "Краш", "Кейсы", "Дайс", "Кено", "Хило", "Мины", "Лесенка", "Монетка"].includes(activeGame) && (
                   <div style={{ maxWidth: 420, margin: "0 auto", textAlign: "center" }}>
                     <h2 className="font-display" style={{ fontSize: 24, color: "#fff", marginBottom: 8 }}>{activeGame.toUpperCase()}</h2>
                     <div style={{ background: "#0D1117", border: "1px solid #1C2532", borderRadius: 16, padding: "60px 24px" }}>
