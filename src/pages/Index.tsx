@@ -33,6 +33,7 @@ const games = [
   { id: 10, name: "Кено", category: "Лотерея", icon: "Hash", badge: "NEW", color: "#06B6D4", players: 198 },
   { id: 11, name: "Хило", category: "Карты", icon: "ArrowUpDown", badge: "HOT", color: "#F472B6", players: 441 },
   { id: 12, name: "Мины", category: "Arcade", icon: "Bomb", badge: "NEW", color: "#EF4444", players: 326 },
+  { id: 13, name: "Лесенка", category: "Карты", icon: "Stairs", badge: "NEW", color: "#F97316", players: 214 },
 ];
 
 interface CaseItem {
@@ -796,6 +797,85 @@ export default function Index() {
     setMinesMinePositions([]);
     setMinesRevealed([]);
     setMinesMultiplier(1);
+  };
+
+  // Ladder game state
+  const LADDER_STEPS = 8;
+  const LADDER_MULTIPLIERS = [1.5, 2.0, 3.0, 4.5, 7.0, 11.0, 18.0, 30.0];
+  const [ladderBet, setLadderBet] = useState("300");
+  const [ladderState, setLadderState] = useState<"idle" | "playing" | "won" | "lost">("idle");
+  const [ladderStep, setLadderStep] = useState(0);
+  const [ladderCards, setLadderCards] = useState<{ left: string; right: string; chosen: "left" | "right" | null; correct: "left" | "right" | null }[]>([]);
+  const [ladderFlipping, setLadderFlipping] = useState(false);
+  const [ladderHistory, setLadderHistory] = useState<{ steps: number; mult: number; won: boolean; profit: string }[]>([]);
+
+  const LADDER_CARD_VALUES = ["2","3","4","5","6","7","8","9","10","J","Q","K","A"];
+  const LADDER_SUITS = ["♠","♥","♦","♣"];
+  const RED_SUITS_L = ["♥","♦"];
+
+  const randomLadderCard = () => ({
+    rank: LADDER_CARD_VALUES[Math.floor(Math.random() * LADDER_CARD_VALUES.length)],
+    suit: LADDER_SUITS[Math.floor(Math.random() * LADDER_SUITS.length)],
+  });
+
+  const startLadder = () => {
+    if (balance < Number(ladderBet) || Number(ladderBet) < 10) return;
+    setBalance(b => b - Number(ladderBet));
+    setLadderStep(0);
+    setLadderCards([]);
+    setLadderState("playing");
+    setLadderFlipping(false);
+  };
+
+  const chooseLadderSide = (side: "left" | "right") => {
+    if (ladderState !== "playing" || ladderFlipping || ladderStep >= LADDER_STEPS) return;
+    setLadderFlipping(true);
+    const left = randomLadderCard();
+    const right = randomLadderCard();
+    const leftVal = LADDER_CARD_VALUES.indexOf(left.rank);
+    const rightVal = LADDER_CARD_VALUES.indexOf(right.rank);
+    let correct: "left" | "right";
+    if (leftVal === rightVal) {
+      correct = side;
+    } else {
+      correct = leftVal > rightVal ? "left" : "right";
+    }
+    const won = side === correct;
+    const newCard = { left: `${left.rank}${left.suit}`, right: `${right.rank}${right.suit}`, chosen: side, correct };
+    setTimeout(() => {
+      setLadderCards(prev => [...prev, newCard]);
+      setLadderFlipping(false);
+      if (won) {
+        const nextStep = ladderStep + 1;
+        setLadderStep(nextStep);
+        if (nextStep >= LADDER_STEPS) {
+          const mult = LADDER_MULTIPLIERS[LADDER_STEPS - 1];
+          const win = Math.floor(Number(ladderBet) * mult);
+          setBalance(b => b + win);
+          setLadderState("won");
+          setLadderHistory(h => [{ steps: nextStep, mult, won: true, profit: `+${win.toLocaleString("ru-RU")} ₽` }, ...h.slice(0, 9)]);
+        }
+      } else {
+        setLadderState("lost");
+        const mult = ladderStep > 0 ? LADDER_MULTIPLIERS[ladderStep - 1] : 0;
+        setLadderHistory(h => [{ steps: ladderStep, mult, won: false, profit: `-${Number(ladderBet).toLocaleString("ru-RU")} ₽` }, ...h.slice(0, 9)]);
+      }
+    }, 600);
+  };
+
+  const cashoutLadder = () => {
+    if (ladderState !== "playing" || ladderStep === 0) return;
+    const mult = LADDER_MULTIPLIERS[ladderStep - 1];
+    const win = Math.floor(Number(ladderBet) * mult);
+    setBalance(b => b + win);
+    setLadderState("won");
+    setLadderHistory(h => [{ steps: ladderStep, mult, won: true, profit: `+${win.toLocaleString("ru-RU")} ₽` }, ...h.slice(0, 9)]);
+  };
+
+  const resetLadder = () => {
+    setLadderState("idle");
+    setLadderStep(0);
+    setLadderCards([]);
   };
 
   const [activeTournament, setActiveTournament] = useState<number | null>(null);
@@ -1860,7 +1940,200 @@ export default function Index() {
                   </div>
                 )}
 
-                {!["Слоты: Удача", "Слоты: Космос", "Рулетка", "Краш", "Кейсы", "Дайс", "Кено", "Хило", "Мины"].includes(activeGame) && (
+                {/* LADDER GAME */}
+                {activeGame === "Лесенка" && (
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 260px", gap: 20, maxWidth: 700, margin: "0 auto" }}>
+                    {/* Ladder visual */}
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+                        <h2 className="font-display" style={{ fontSize: 22, color: "#fff" }}>ЛЕСЕНКА</h2>
+                        {ladderState === "playing" && ladderStep > 0 && (
+                          <div className="font-display" style={{ fontSize: 14, color: "#F0C040" }}>
+                            Текущий: ×{LADDER_MULTIPLIERS[ladderStep - 1].toFixed(1)}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Steps — from bottom (step 1) to top (step 8) */}
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        {[...Array(LADDER_STEPS)].map((_, i) => {
+                          const stepIdx = LADDER_STEPS - 1 - i;
+                          const mult = LADDER_MULTIPLIERS[stepIdx];
+                          const card = ladderCards[stepIdx];
+                          const isActive = ladderState === "playing" && ladderStep === stepIdx;
+                          const isCompleted = ladderStep > stepIdx;
+                          const isFailed = ladderState === "lost" && ladderStep === stepIdx;
+                          return (
+                            <div key={stepIdx} style={{
+                              display: "grid", gridTemplateColumns: "36px 1fr 1fr 60px",
+                              gap: 8, alignItems: "center",
+                              padding: "8px 12px", borderRadius: 10,
+                              border: `1px solid ${isActive ? "#F97316" : isCompleted ? "rgba(46,204,113,0.35)" : isFailed ? "rgba(239,68,68,0.35)" : "#1C2532"}`,
+                              background: isActive ? "rgba(249,115,22,0.08)" : isCompleted ? "rgba(46,204,113,0.06)" : isFailed ? "rgba(239,68,68,0.06)" : "#0D1117",
+                              transition: "all 0.3s",
+                            }}>
+                              {/* Step label */}
+                              <div className="font-display" style={{ fontSize: 11, color: isCompleted ? "#2ECC71" : isFailed ? "#EF4444" : isActive ? "#F97316" : "#3D4D60", letterSpacing: "0.04em" }}>
+                                {isCompleted ? "✓" : isFailed ? "✗" : `${stepIdx + 1}`}
+                              </div>
+
+                              {/* Left card */}
+                              <div style={{
+                                borderRadius: 8, padding: "6px 10px", textAlign: "center",
+                                background: card ? (card.correct === "left" ? "rgba(46,204,113,0.15)" : "rgba(239,68,68,0.1)") : "#141B24",
+                                border: `1px solid ${card ? (card.correct === "left" ? "rgba(46,204,113,0.4)" : "rgba(239,68,68,0.3)") : "#1C2532"}`,
+                                fontSize: 13, fontFamily: "Oswald, sans-serif",
+                                color: card ? (RED_SUITS_L.includes(card.left.slice(-1)) ? "#F87171" : "#D1D9E6") : "#3D4D60",
+                              }}>
+                                {card ? card.left : (isActive ? "?" : "—")}
+                                {card && card.chosen === "left" && <span style={{ marginLeft: 4, fontSize: 10 }}>{card.correct === "left" ? "✓" : "✗"}</span>}
+                              </div>
+
+                              {/* Right card */}
+                              <div style={{
+                                borderRadius: 8, padding: "6px 10px", textAlign: "center",
+                                background: card ? (card.correct === "right" ? "rgba(46,204,113,0.15)" : "rgba(239,68,68,0.1)") : "#141B24",
+                                border: `1px solid ${card ? (card.correct === "right" ? "rgba(46,204,113,0.4)" : "rgba(239,68,68,0.3)") : "#1C2532"}`,
+                                fontSize: 13, fontFamily: "Oswald, sans-serif",
+                                color: card ? (RED_SUITS_L.includes(card.right.slice(-1)) ? "#F87171" : "#D1D9E6") : "#3D4D60",
+                              }}>
+                                {card ? card.right : (isActive ? "?" : "—")}
+                                {card && card.chosen === "right" && <span style={{ marginLeft: 4, fontSize: 10 }}>{card.correct === "right" ? "✓" : "✗"}</span>}
+                              </div>
+
+                              {/* Multiplier */}
+                              <div className="font-display" style={{ fontSize: 13, color: isCompleted ? "#2ECC71" : isActive ? "#F97316" : "#6B7A8D", textAlign: "right" }}>
+                                ×{mult.toFixed(1)}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Active step buttons */}
+                      {ladderState === "playing" && !ladderFlipping && ladderStep < LADDER_STEPS && (
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 14 }}>
+                          <button
+                            onClick={() => chooseLadderSide("left")}
+                            style={{ padding: "14px", border: "2px solid rgba(249,115,22,0.5)", borderRadius: 12, background: "rgba(249,115,22,0.1)", color: "#F97316", cursor: "pointer", fontFamily: "Oswald, sans-serif", fontSize: 16, letterSpacing: "0.06em", transition: "all 0.15s" }}
+                          >
+                            ← ЛЕВАЯ
+                          </button>
+                          <button
+                            onClick={() => chooseLadderSide("right")}
+                            style={{ padding: "14px", border: "2px solid rgba(249,115,22,0.5)", borderRadius: 12, background: "rgba(249,115,22,0.1)", color: "#F97316", cursor: "pointer", fontFamily: "Oswald, sans-serif", fontSize: 16, letterSpacing: "0.06em", transition: "all 0.15s" }}
+                          >
+                            ПРАВАЯ →
+                          </button>
+                        </div>
+                      )}
+                      {ladderFlipping && (
+                        <div style={{ textAlign: "center", marginTop: 14, color: "#6B7A8D", fontFamily: "Oswald, sans-serif", fontSize: 14, letterSpacing: "0.06em" }}>Открываю карты...</div>
+                      )}
+
+                      {/* Result */}
+                      {ladderState === "won" && (
+                        <div style={{ textAlign: "center", marginTop: 16, animation: "fadeUp 0.3s ease" }}>
+                          <div className="font-display" style={{ fontSize: 20, color: "#2ECC71" }}>🎉 ВЫИГРЫШ!</div>
+                          <div className="font-display" style={{ fontSize: 26, color: "#2ECC71", marginTop: 4 }}>
+                            +{Math.floor(Number(ladderBet) * (ladderStep > 0 ? LADDER_MULTIPLIERS[ladderStep - 1] : 1)).toLocaleString("ru-RU")} ₽
+                          </div>
+                        </div>
+                      )}
+                      {ladderState === "lost" && (
+                        <div style={{ textAlign: "center", marginTop: 16, animation: "fadeUp 0.3s ease" }}>
+                          <div className="font-display" style={{ fontSize: 20, color: "#EF4444" }}>💥 НЕВЕРНАЯ КАРТА!</div>
+                          <div style={{ fontSize: 13, color: "#6B7A8D", marginTop: 4 }}>Пройдено ступеней: {ladderStep}</div>
+                        </div>
+                      )}
+
+                      {/* History */}
+                      {ladderHistory.length > 0 && (
+                        <div style={{ marginTop: 14, display: "flex", gap: 6, flexWrap: "wrap" as const }}>
+                          {ladderHistory.slice(0, 6).map((h, i) => (
+                            <span key={i} style={{ fontSize: 11, padding: "3px 9px", borderRadius: 6, background: h.won ? "rgba(46,204,113,0.1)" : "rgba(239,68,68,0.1)", color: h.won ? "#2ECC71" : "#EF4444", border: `1px solid ${h.won ? "rgba(46,204,113,0.3)" : "rgba(239,68,68,0.3)"}`, fontFamily: "Oswald, sans-serif" }}>
+                              {h.steps}🪜 ×{h.mult.toFixed(1)} {h.profit}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Controls panel */}
+                    <div style={{ background: "#0D1117", border: "1px solid #1C2532", borderRadius: 14, padding: 20, display: "flex", flexDirection: "column", gap: 16, height: "fit-content" }}>
+                      {ladderState === "idle" && (
+                        <>
+                          <div>
+                            <label style={{ fontSize: 12, color: "#6B7A8D", marginBottom: 8, display: "block", letterSpacing: "0.06em" }}>СТАВКА (₽)</label>
+                            <input className="input-dark" value={ladderBet} onChange={e => setLadderBet(e.target.value)} type="number" style={{ width: "100%", fontSize: 18, fontFamily: "Oswald, sans-serif", color: "#F0C040" }} />
+                            <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                              {["100", "300", "1000", "5000"].map(a => (
+                                <button key={a} onClick={() => setLadderBet(a)} style={{ flex: 1, background: ladderBet === a ? "rgba(249,115,22,0.12)" : "#141B24", border: `1px solid ${ladderBet === a ? "#F97316" : "#1C2532"}`, borderRadius: 8, padding: "6px 0", color: ladderBet === a ? "#F97316" : "#6B7A8D", fontSize: 11, cursor: "pointer", fontFamily: "Oswald, sans-serif" }}>
+                                  {Number(a).toLocaleString("ru-RU")}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div style={{ background: "#141B24", border: "1px solid #1C2532", borderRadius: 10, padding: "12px 14px" }}>
+                            <div style={{ fontSize: 11, color: "#6B7A8D", marginBottom: 8 }}>Таблица множителей</div>
+                            {LADDER_MULTIPLIERS.map((m, i) => (
+                              <div key={i} style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                                <span style={{ fontSize: 11, color: "#6B7A8D" }}>Ступень {i + 1}</span>
+                                <span className="font-display" style={{ fontSize: 11, color: "#F97316" }}>×{m.toFixed(1)}</span>
+                              </div>
+                            ))}
+                          </div>
+
+                          <button
+                            className="gold-btn"
+                            onClick={startLadder}
+                            disabled={balance < Number(ladderBet) || Number(ladderBet) < 10}
+                            style={{ width: "100%", padding: 14, border: "none", borderRadius: 10, cursor: "pointer", fontSize: 16, fontFamily: "Oswald, sans-serif", letterSpacing: "0.06em", opacity: balance < Number(ladderBet) ? 0.5 : 1 }}
+                          >
+                            🪜 СТАРТ — {Number(ladderBet).toLocaleString("ru-RU")} ₽
+                          </button>
+                        </>
+                      )}
+
+                      {ladderState === "playing" && (
+                        <>
+                          <div style={{ textAlign: "center" }}>
+                            <div style={{ fontSize: 11, color: "#6B7A8D", marginBottom: 4 }}>Ступень</div>
+                            <div className="font-display" style={{ fontSize: 32, color: "#F97316" }}>{ladderStep + 1} / {LADDER_STEPS}</div>
+                          </div>
+                          {ladderStep > 0 && (
+                            <div style={{ textAlign: "center" }}>
+                              <div style={{ fontSize: 11, color: "#6B7A8D", marginBottom: 4 }}>Можно забрать</div>
+                              <div className="font-display" style={{ fontSize: 22, color: "#2ECC71" }}>{Math.floor(Number(ladderBet) * LADDER_MULTIPLIERS[ladderStep - 1]).toLocaleString("ru-RU")} ₽</div>
+                              <div style={{ fontSize: 11, color: "#6B7A8D" }}>×{LADDER_MULTIPLIERS[ladderStep - 1].toFixed(1)}</div>
+                            </div>
+                          )}
+                          <button
+                            onClick={cashoutLadder}
+                            disabled={ladderStep === 0 || ladderFlipping}
+                            style={{ width: "100%", padding: 13, border: `2px solid ${ladderStep > 0 ? "#F0C040" : "#1C2532"}`, borderRadius: 10, background: ladderStep > 0 ? "rgba(212,160,23,0.12)" : "#141B24", color: ladderStep > 0 ? "#F0C040" : "#3D4D60", cursor: ladderStep > 0 && !ladderFlipping ? "pointer" : "not-allowed", fontSize: 14, fontFamily: "Oswald, sans-serif", letterSpacing: "0.06em", transition: "all 0.15s" }}
+                          >
+                            💰 ЗАБРАТЬ{ladderStep > 0 ? ` ${Math.floor(Number(ladderBet) * LADDER_MULTIPLIERS[ladderStep - 1]).toLocaleString("ru-RU")} ₽` : ""}
+                          </button>
+                        </>
+                      )}
+
+                      {(ladderState === "won" || ladderState === "lost") && (
+                        <button className="gold-btn" onClick={resetLadder} style={{ width: "100%", padding: 14, border: "none", borderRadius: 10, cursor: "pointer", fontSize: 16, fontFamily: "Oswald, sans-serif", letterSpacing: "0.06em" }}>
+                          ИГРАТЬ СНОВА
+                        </button>
+                      )}
+
+                      <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 14, borderTop: "1px solid #1C2532" }}>
+                        <span style={{ fontSize: 12, color: "#6B7A8D" }}>Баланс</span>
+                        <span className="font-display" style={{ fontSize: 14, color: "#F0C040" }}>{balance.toLocaleString("ru-RU")} ₽</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {!["Слоты: Удача", "Слоты: Космос", "Рулетка", "Краш", "Кейсы", "Дайс", "Кено", "Хило", "Мины", "Лесенка"].includes(activeGame) && (
                   <div style={{ maxWidth: 420, margin: "0 auto", textAlign: "center" }}>
                     <h2 className="font-display" style={{ fontSize: 24, color: "#fff", marginBottom: 8 }}>{activeGame.toUpperCase()}</h2>
                     <div style={{ background: "#0D1117", border: "1px solid #1C2532", borderRadius: 16, padding: "60px 24px" }}>
