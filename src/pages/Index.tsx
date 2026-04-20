@@ -4,6 +4,7 @@ import BlackjackGame from "@/components/games/BlackjackGame";
 import AuthModal from "@/components/AuthModal";
 
 const AUTH_URL = "https://functions.poehali.dev/65956f1f-d89a-4964-bb46-54584865fac0";
+const SUPPORT_URL = "https://functions.poehali.dev/4d03e56e-5a02-42d3-a126-ecc04fe25214";
 
 interface AuthUser {
   id: number;
@@ -12,9 +13,10 @@ interface AuthUser {
   name?: string;
   avatar_url?: string;
   balance: number;
+  is_admin?: boolean;
 }
 
-type Page = "home" | "games" | "deposit" | "withdraw" | "profile" | "history" | "support" | "rules" | "tournaments" | "ranks" | "bonuses";
+type Page = "home" | "games" | "deposit" | "withdraw" | "profile" | "history" | "support" | "rules" | "tournaments" | "ranks" | "bonuses" | "admin";
 
 interface Message {
   from: "user" | "operator";
@@ -394,6 +396,20 @@ export default function Index() {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const replyIdx = useRef(0);
 
+  // Чат поддержки
+  const [supportChatId, setSupportChatId] = useState<number | null>(null);
+  const [supportMessages, setSupportMessages] = useState<{id: number; text: string; is_admin: boolean; created_at: string; sender_name: string}[]>([]);
+  const [supportInput, setSupportInput] = useState("");
+  const [supportLoading, setSupportLoading] = useState(false);
+  const supportEndRef = useRef<HTMLDivElement>(null);
+
+  // Админ-панель
+  const [adminChats, setAdminChats] = useState<{id: number; status: string; user_name: string; user_email: string; last_message: string | null; message_count: number; updated_at: string}[]>([]);
+  const [adminSelectedChat, setAdminSelectedChat] = useState<number | null>(null);
+  const [adminMessages, setAdminMessages] = useState<{id: number; text: string; is_admin: boolean; created_at: string; sender_name: string}[]>([]);
+  const [adminInput, setAdminInput] = useState("");
+  const adminEndRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, typing]);
@@ -453,6 +469,66 @@ export default function Index() {
       syncBalance(next);
       return next;
     });
+  }
+
+  async function supportApiCall(body: object) {
+    return fetch(SUPPORT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Session-Token": authToken },
+      body: JSON.stringify(body),
+    }).then(r => r.json());
+  }
+
+  async function openSupportChat() {
+    if (!authToken) { setShowAuthModal(true); return; }
+    setSupportLoading(true);
+    const data = await supportApiCall({ action: "get_or_create_chat" });
+    if (data.chat_id) {
+      setSupportChatId(data.chat_id);
+      const msgs = await supportApiCall({ action: "get_messages", chat_id: data.chat_id });
+      if (msgs.messages) setSupportMessages(msgs.messages);
+    }
+    setSupportLoading(false);
+  }
+
+  async function sendSupportMessage() {
+    if (!supportInput.trim() || !supportChatId) return;
+    const text = supportInput.trim();
+    setSupportInput("");
+    const data = await supportApiCall({ action: "send_message", chat_id: supportChatId, text });
+    if (data.id) {
+      setSupportMessages(prev => [...prev, { id: data.id, text: data.text, is_admin: false, created_at: data.created_at, sender_name: authUser?.name || "" }]);
+      setTimeout(() => supportEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+    }
+  }
+
+  async function loadAdminChats() {
+    const data = await supportApiCall({ action: "get_all_chats" });
+    if (data.chats) setAdminChats(data.chats);
+  }
+
+  async function openAdminChat(chatId: number) {
+    setAdminSelectedChat(chatId);
+    const data = await supportApiCall({ action: "get_messages", chat_id: chatId });
+    if (data.messages) setAdminMessages(data.messages);
+    setTimeout(() => adminEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+  }
+
+  async function sendAdminMessage() {
+    if (!adminInput.trim() || !adminSelectedChat) return;
+    const text = adminInput.trim();
+    setAdminInput("");
+    const data = await supportApiCall({ action: "send_message", chat_id: adminSelectedChat, text });
+    if (data.id) {
+      setAdminMessages(prev => [...prev, { id: data.id, text: data.text, is_admin: true, created_at: data.created_at, sender_name: authUser?.name || "Админ" }]);
+      setTimeout(() => adminEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+    }
+  }
+
+  async function closeAdminChat(chatId: number) {
+    await supportApiCall({ action: "close_chat", chat_id: chatId });
+    loadAdminChats();
+    if (adminSelectedChat === chatId) setAdminSelectedChat(null);
   }
 
   const sendMessage = () => {
@@ -1112,6 +1188,7 @@ export default function Index() {
     { id: "history", label: "История", icon: "Clock" },
     { id: "rules", label: "Правила", icon: "BookOpen" },
     { id: "support", label: "Поддержка", icon: "MessageCircle" },
+    ...(authUser?.is_admin ? [{ id: "admin" as Page, label: "Панель админа", icon: "ShieldCheck" }] : []),
   ];
 
   return (
@@ -3474,68 +3551,148 @@ export default function Index() {
         {page === "support" && (
           <div className="animate-fade-up" style={{ maxWidth: 540 }}>
             <h1 className="font-display" style={{ fontSize: 32, fontWeight: 500, color: "#fff", marginBottom: 8 }}>ПОДДЕРЖКА</h1>
-            <p style={{ color: "#6B7A8D", marginBottom: 28 }}>Онлайн-чат с оператором</p>
+            <p style={{ color: "#6B7A8D", marginBottom: 28 }}>Напишите нам — мы ответим как можно скорее</p>
 
-            <div style={{ background: "#0D1117", border: "1px solid #1C2532", borderRadius: 14, display: "flex", flexDirection: "column", height: 460 }}>
-              <div style={{ padding: "16px 20px", borderBottom: "1px solid #1C2532", display: "flex", alignItems: "center", gap: 12 }}>
-                <div style={{ width: 36, height: 36, borderRadius: "50%", background: "linear-gradient(135deg, #1a5c1a, #2ECC71)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <Icon name="Headphones" size={16} style={{ color: "#fff" }} />
-                </div>
-                <div>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: "#D1D9E6" }}>Оператор Алексей</div>
-                  <div style={{ fontSize: 12, color: "#2ECC71", display: "flex", alignItems: "center", gap: 5 }}>
-                    <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#2ECC71" }} /> В сети
-                  </div>
-                </div>
-                <div style={{ marginLeft: "auto", fontSize: 12, color: "#3D4D60" }}>Время ответа: ~1 мин</div>
+            {!authUser ? (
+              <div style={{ background: "#0D1117", border: "1px solid #1C2532", borderRadius: 14, padding: "40px 24px", textAlign: "center" }}>
+                <Icon name="MessageCircle" size={40} style={{ color: "#D4A017", marginBottom: 16 }} />
+                <div style={{ color: "#D1D9E6", fontSize: 16, marginBottom: 8 }}>Войдите, чтобы написать в поддержку</div>
+                <div style={{ color: "#6B7A8D", fontSize: 13, marginBottom: 24 }}>Чат доступен только для зарегистрированных пользователей</div>
+                <button className="gold-btn" onClick={() => setShowAuthModal(true)} style={{ padding: "12px 28px", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 14 }}>Войти / Зарегистрироваться</button>
               </div>
-
-              <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
-                {messages.map((msg, i) => (
-                  <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: msg.from === "user" ? "flex-end" : "flex-start" }}>
-                    <div className={msg.from === "operator" ? "chat-bubble-operator" : "chat-bubble-user"}>
-                      {msg.text}
+            ) : !supportChatId ? (
+              <div style={{ background: "#0D1117", border: "1px solid #1C2532", borderRadius: 14, padding: "40px 24px", textAlign: "center" }}>
+                <Icon name="Headphones" size={40} style={{ color: "#D4A017", marginBottom: 16 }} />
+                <div style={{ color: "#D1D9E6", fontSize: 16, marginBottom: 8 }}>Служба поддержки</div>
+                <div style={{ color: "#6B7A8D", fontSize: 13, marginBottom: 24 }}>Начните диалог — оператор ответит вам в ближайшее время</div>
+                <button className="gold-btn" onClick={openSupportChat} disabled={supportLoading} style={{ padding: "12px 28px", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 14 }}>
+                  {supportLoading ? "Загрузка..." : "Открыть чат"}
+                </button>
+                <div style={{ marginTop: 24, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  {[
+                    { label: "Проблема с выплатой", icon: "AlertCircle" },
+                    { label: "Технические вопросы", icon: "Settings" },
+                    { label: "Вопрос по бонусу", icon: "Gift" },
+                    { label: "Другое", icon: "MessageSquare" },
+                  ].map((q) => (
+                    <button key={q.label} onClick={() => { openSupportChat(); setSupportInput(q.label); }} style={{ background: "#141B24", border: "1px solid #1C2532", borderRadius: 10, padding: "12px 14px", display: "flex", alignItems: "center", gap: 10, color: "#6B7A8D", cursor: "pointer", fontSize: 13, textAlign: "left" }}>
+                      <Icon name={q.icon} size={14} style={{ color: "#D4A017" }} />
+                      {q.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div style={{ background: "#0D1117", border: "1px solid #1C2532", borderRadius: 14, display: "flex", flexDirection: "column", height: 500 }}>
+                <div style={{ padding: "16px 20px", borderBottom: "1px solid #1C2532", display: "flex", alignItems: "center", gap: 12 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: "50%", background: "linear-gradient(135deg, #1a5c1a, #2ECC71)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <Icon name="Headphones" size={16} style={{ color: "#fff" }} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: "#D1D9E6" }}>Служба поддержки</div>
+                    <div style={{ fontSize: 12, color: "#2ECC71", display: "flex", alignItems: "center", gap: 5 }}>
+                      <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#2ECC71" }} /> Онлайн
                     </div>
-                    <div style={{ fontSize: 10, color: "#3D4D60", marginTop: 4 }}>{msg.time}</div>
                   </div>
-                ))}
-                {typing && (
-                  <div style={{ display: "flex", gap: 4, alignItems: "center", padding: "10px 14px", background: "#1C2532", borderRadius: "0 12px 12px 12px", width: "fit-content" }}>
-                    {[0, 0.2, 0.4].map((delay, i) => (
-                      <div key={i} style={{ width: 6, height: 6, borderRadius: "50%", background: "#6B7A8D", animation: `pulse-gold 1.2s ${delay}s infinite` }} />
-                    ))}
+                  <button onClick={async () => { const msgs = await supportApiCall({ action: "get_messages", chat_id: supportChatId }); if (msgs.messages) setSupportMessages(msgs.messages); }} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: "#6B7A8D" }} title="Обновить">
+                    <Icon name="RefreshCw" size={16} />
+                  </button>
+                </div>
+                <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
+                  {supportMessages.length === 0 && (
+                    <div style={{ color: "#3D4D60", fontSize: 13, textAlign: "center", marginTop: 40 }}>Напишите ваш вопрос — мы ответим как можно скорее</div>
+                  )}
+                  {supportMessages.map((msg) => (
+                    <div key={msg.id} style={{ display: "flex", flexDirection: "column", alignItems: msg.is_admin ? "flex-start" : "flex-end" }}>
+                      <div className={msg.is_admin ? "chat-bubble-operator" : "chat-bubble-user"}>{msg.text}</div>
+                      <div style={{ fontSize: 10, color: "#3D4D60", marginTop: 4 }}>
+                        {msg.is_admin ? "Поддержка" : "Вы"} · {new Date(msg.created_at).toLocaleTimeString("ru", { hour: "2-digit", minute: "2-digit" })}
+                      </div>
+                    </div>
+                  ))}
+                  <div ref={supportEndRef} />
+                </div>
+                <div style={{ padding: "14px 16px", borderTop: "1px solid #1C2532", display: "flex", gap: 10 }}>
+                  <input className="input-dark" value={supportInput} onChange={(e) => setSupportInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && sendSupportMessage()} placeholder="Введите сообщение..." style={{ flex: 1 }} />
+                  <button onClick={sendSupportMessage} className="gold-btn" style={{ padding: "10px 16px", border: "none", borderRadius: 8, cursor: "pointer", flexShrink: 0 }}>
+                    <Icon name="Send" size={16} style={{ color: "#0A0E14" }} />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ADMIN */}
+        {page === "admin" && authUser?.is_admin && (
+          <div className="animate-fade-up" style={{ maxWidth: 860, width: "100%" }}>
+            <h1 className="font-display" style={{ fontSize: 32, fontWeight: 500, color: "#fff", marginBottom: 8 }}>ПАНЕЛЬ АДМИНИСТРАТОРА</h1>
+            <p style={{ color: "#6B7A8D", marginBottom: 28 }}>Обращения пользователей в поддержку</p>
+
+            <div style={{ display: "flex", gap: 16, height: 560 }}>
+              {/* Список чатов */}
+              <div style={{ width: 280, flexShrink: 0, background: "#0D1117", border: "1px solid #1C2532", borderRadius: 14, display: "flex", flexDirection: "column" }}>
+                <div style={{ padding: "14px 16px", borderBottom: "1px solid #1C2532", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span style={{ color: "#D1D9E6", fontWeight: 600, fontSize: 14 }}>Обращения</span>
+                  <button onClick={loadAdminChats} style={{ background: "none", border: "none", cursor: "pointer", color: "#6B7A8D" }}>
+                    <Icon name="RefreshCw" size={14} />
+                  </button>
+                </div>
+                <div style={{ flex: 1, overflowY: "auto" }}>
+                  {adminChats.length === 0 && (
+                    <div style={{ color: "#3D4D60", fontSize: 13, textAlign: "center", padding: "40px 16px" }}>
+                      Нажмите обновить для загрузки
+                    </div>
+                  )}
+                  {adminChats.map((chat) => (
+                    <div key={chat.id} onClick={() => openAdminChat(chat.id)} style={{ padding: "12px 16px", borderBottom: "1px solid #1C2532", cursor: "pointer", background: adminSelectedChat === chat.id ? "#141B24" : "transparent", transition: "background 0.15s" }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                        <span style={{ color: "#D1D9E6", fontSize: 13, fontWeight: 500 }}>{chat.user_name}</span>
+                        <span style={{ fontSize: 10, color: chat.status === "open" ? "#2ECC71" : "#6B7A8D" }}>{chat.status === "open" ? "Открыт" : "Закрыт"}</span>
+                      </div>
+                      <div style={{ color: "#6B7A8D", fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{chat.last_message || "Нет сообщений"}</div>
+                      <div style={{ color: "#3D4D60", fontSize: 10, marginTop: 2 }}>{chat.user_email}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Окно чата */}
+              <div style={{ flex: 1, background: "#0D1117", border: "1px solid #1C2532", borderRadius: 14, display: "flex", flexDirection: "column" }}>
+                {!adminSelectedChat ? (
+                  <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 12 }}>
+                    <Icon name="MessageSquare" size={40} style={{ color: "#1C2532" }} />
+                    <div style={{ color: "#3D4D60", fontSize: 14 }}>Выберите обращение слева</div>
                   </div>
+                ) : (
+                  <>
+                    <div style={{ padding: "14px 20px", borderBottom: "1px solid #1C2532", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <div>
+                        <div style={{ color: "#D1D9E6", fontWeight: 600, fontSize: 14 }}>{adminChats.find(c => c.id === adminSelectedChat)?.user_name}</div>
+                        <div style={{ color: "#6B7A8D", fontSize: 12 }}>{adminChats.find(c => c.id === adminSelectedChat)?.user_email}</div>
+                      </div>
+                      <button onClick={() => closeAdminChat(adminSelectedChat)} style={{ background: "#1C2532", border: "none", borderRadius: 8, padding: "6px 14px", color: "#6B7A8D", cursor: "pointer", fontSize: 12 }}>Закрыть чат</button>
+                    </div>
+                    <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
+                      {adminMessages.map((msg) => (
+                        <div key={msg.id} style={{ display: "flex", flexDirection: "column", alignItems: msg.is_admin ? "flex-end" : "flex-start" }}>
+                          <div className={msg.is_admin ? "chat-bubble-user" : "chat-bubble-operator"}>{msg.text}</div>
+                          <div style={{ fontSize: 10, color: "#3D4D60", marginTop: 4 }}>
+                            {msg.is_admin ? "Вы" : msg.sender_name} · {new Date(msg.created_at).toLocaleTimeString("ru", { hour: "2-digit", minute: "2-digit" })}
+                          </div>
+                        </div>
+                      ))}
+                      <div ref={adminEndRef} />
+                    </div>
+                    <div style={{ padding: "14px 16px", borderTop: "1px solid #1C2532", display: "flex", gap: 10 }}>
+                      <input className="input-dark" value={adminInput} onChange={(e) => setAdminInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && sendAdminMessage()} placeholder="Ответить пользователю..." style={{ flex: 1 }} />
+                      <button onClick={sendAdminMessage} className="gold-btn" style={{ padding: "10px 16px", border: "none", borderRadius: 8, cursor: "pointer", flexShrink: 0 }}>
+                        <Icon name="Send" size={16} style={{ color: "#0A0E14" }} />
+                      </button>
+                    </div>
+                  </>
                 )}
-                <div ref={chatEndRef} />
               </div>
-
-              <div style={{ padding: "14px 16px", borderTop: "1px solid #1C2532", display: "flex", gap: 10 }}>
-                <input
-                  className="input-dark"
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-                  placeholder="Введите сообщение..."
-                  style={{ flex: 1 }}
-                />
-                <button onClick={sendMessage} className="gold-btn" style={{ padding: "10px 16px", border: "none", borderRadius: 8, cursor: "pointer", flexShrink: 0 }}>
-                  <Icon name="Send" size={16} style={{ color: "#0A0E14" }} />
-                </button>
-              </div>
-            </div>
-
-            <div style={{ marginTop: 14, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              {[
-                { label: "Проблема с выплатой", icon: "AlertCircle" },
-                { label: "Технические вопросы", icon: "Settings" },
-                { label: "Вопрос по бонусу", icon: "Gift" },
-                { label: "Другое", icon: "MessageSquare" },
-              ].map((q) => (
-                <button key={q.label} onClick={() => setChatInput(q.label)} style={{ background: "#141B24", border: "1px solid #1C2532", borderRadius: 10, padding: "12px 14px", display: "flex", alignItems: "center", gap: 10, color: "#6B7A8D", cursor: "pointer", fontSize: 13, textAlign: "left" }}>
-                  <Icon name={q.icon} size={14} style={{ color: "#D4A017" }} />
-                  {q.label}
-                </button>
-              ))}
             </div>
           </div>
         )}

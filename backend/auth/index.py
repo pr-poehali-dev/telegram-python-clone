@@ -40,7 +40,7 @@ def err(msg: str, status: int = 400) -> dict:
 def get_user_by_token(conn, token: str):
     cur = conn.cursor()
     cur.execute(
-        "SELECT u.id, u.email, u.phone, u.name, u.avatar_url, u.balance "
+        "SELECT u.id, u.email, u.phone, u.name, u.avatar_url, u.balance, u.is_admin "
         "FROM users u JOIN sessions s ON s.user_id = u.id "
         "WHERE s.token = %s AND s.expires_at > NOW()",
         (token,)
@@ -49,7 +49,7 @@ def get_user_by_token(conn, token: str):
     cur.close()
     if not row:
         return None
-    return {"id": row[0], "email": row[1], "phone": row[2], "name": row[3], "avatar_url": row[4], "balance": float(row[5])}
+    return {"id": row[0], "email": row[1], "phone": row[2], "name": row[3], "avatar_url": row[4], "balance": float(row[5]), "is_admin": bool(row[6])}
 
 
 def handler(event: dict, context) -> dict:
@@ -121,12 +121,12 @@ def handler(event: dict, context) -> dict:
 
             if email:
                 cur.execute(
-                    "SELECT id, email, phone, name, avatar_url, balance FROM users WHERE email = %s AND password_hash = %s",
+                    "SELECT id, email, phone, name, avatar_url, balance, is_admin FROM users WHERE email = %s AND password_hash = %s",
                     (email, pw_hash)
                 )
             else:
                 cur.execute(
-                    "SELECT id, email, phone, name, avatar_url, balance FROM users WHERE phone = %s AND password_hash = %s",
+                    "SELECT id, email, phone, name, avatar_url, balance, is_admin FROM users WHERE phone = %s AND password_hash = %s",
                     (phone, pw_hash)
                 )
 
@@ -135,7 +135,7 @@ def handler(event: dict, context) -> dict:
                 cur.close()
                 return err("Неверный логин или пароль", 401)
 
-            user = {"id": row[0], "email": row[1], "phone": row[2], "name": row[3], "avatar_url": row[4], "balance": float(row[5])}
+            user = {"id": row[0], "email": row[1], "phone": row[2], "name": row[3], "avatar_url": row[4], "balance": float(row[5]), "is_admin": bool(row[6])}
             token_val = make_token()
             cur.execute("INSERT INTO sessions (user_id, token) VALUES (%s, %s)", (user["id"], token_val))
             conn.commit()
