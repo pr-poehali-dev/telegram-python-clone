@@ -547,11 +547,10 @@ export default function Index() {
     setRouletteTodayAmount(data.today_amount ?? null);
   }
 
-  async function spinRoulette() {
+  async function spinDailyRoulette() {
     if (!authToken) { setShowAuthModal(true); return; }
     if (rouletteSpinning || !rouletteCanSpin) return;
     setRouletteSpinning(true);
-    // Анимация вращения
     const spinDeg = 1800 + Math.floor(Math.random() * 360);
     setRouletteAngle(prev => prev + spinDeg);
     setTimeout(async () => {
@@ -3339,7 +3338,7 @@ export default function Index() {
                   </div>
                 ) : (
                   <button
-                    onClick={spinRoulette}
+                    onClick={spinDailyRoulette}
                     disabled={rouletteSpinning || rouletteCanSpin === false || !authUser}
                     className="gold-btn"
                     style={{ padding: "12px 36px", border: "none", borderRadius: 10, cursor: rouletteSpinning ? "not-allowed" : "pointer", fontSize: 14, fontFamily: "Oswald, sans-serif", letterSpacing: "0.06em", opacity: rouletteSpinning ? 0.7 : 1 }}
