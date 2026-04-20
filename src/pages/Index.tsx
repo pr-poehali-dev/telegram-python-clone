@@ -1092,6 +1092,7 @@ export default function Index() {
     }, 160);
   };
 
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeTournament, setActiveTournament] = useState<number | null>(null);
   const [gameSearch, setGameSearch] = useState("");
   const [gameCategory, setGameCategory] = useState("Все");
@@ -1117,67 +1118,95 @@ export default function Index() {
     <div style={{ display: "flex", minHeight: "100vh", background: "#0A0E14", position: "relative" }}>
       {/* Sidebar */}
       <aside style={{
-        width: 220, minHeight: "100vh", background: "#0D1117",
+        width: sidebarOpen ? 220 : 64, minHeight: "100vh", background: "#0D1117",
         borderRight: "1px solid #1C2532", display: "flex", flexDirection: "column",
-        padding: "0 12px", flexShrink: 0
+        padding: "0 12px", flexShrink: 0, transition: "width 0.25s ease", overflow: "hidden"
       }}>
-        <div style={{ padding: "24px 8px 20px", borderBottom: "1px solid #1C2532" }}>
-          <div className="font-display" style={{ fontSize: 22, fontWeight: 600, color: "#F0C040", letterSpacing: "0.06em" }}>
-            LUCKY<span style={{ color: "#fff", fontWeight: 300 }}>SPACE</span>
-          </div>
-          <div style={{ fontSize: 10, color: "#3D4D60", marginTop: 2, letterSpacing: "0.1em" }}>ОНЛАЙН КАЗИНО</div>
+        {/* Logo + toggle */}
+        <div style={{ padding: "20px 8px 16px", borderBottom: "1px solid #1C2532", display: "flex", alignItems: "center", justifyContent: "space-between", minHeight: 64 }}>
+          {sidebarOpen && (
+            <div>
+              <div className="font-display" style={{ fontSize: 22, fontWeight: 600, color: "#F0C040", letterSpacing: "0.06em", whiteSpace: "nowrap" }}>
+                LUCKY<span style={{ color: "#fff", fontWeight: 300 }}>SPACE</span>
+              </div>
+              <div style={{ fontSize: 10, color: "#3D4D60", marginTop: 2, letterSpacing: "0.1em" }}>ОНЛАЙН КАЗИНО</div>
+            </div>
+          )}
+          <button onClick={() => setSidebarOpen(v => !v)} style={{
+            background: "rgba(255,255,255,0.04)", border: "1px solid #1C2532",
+            borderRadius: 8, width: 32, height: 32, display: "flex", alignItems: "center",
+            justifyContent: "center", cursor: "pointer", color: "#6B7A8D", flexShrink: 0,
+            marginLeft: sidebarOpen ? 0 : "auto", marginRight: sidebarOpen ? 0 : "auto",
+            transition: "all 0.2s"
+          }}>
+            <Icon name={sidebarOpen ? "PanelLeftClose" : "PanelLeftOpen"} size={16} />
+          </button>
         </div>
 
-        {authUser ? (
-          <div style={{ margin: "12px 0 4px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-              <div style={{ width: 32, height: 32, borderRadius: "50%", background: "linear-gradient(135deg, #D4A017, #F0C040)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <Icon name="User" size={15} style={{ color: "#0A0E14" }} />
+        {sidebarOpen && (
+          <>
+            {authUser ? (
+              <div style={{ margin: "12px 0 4px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                  <div style={{ width: 32, height: 32, borderRadius: "50%", background: "linear-gradient(135deg, #D4A017, #F0C040)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <Icon name="User" size={15} style={{ color: "#0A0E14" }} />
+                  </div>
+                  <div style={{ overflow: "hidden" }}>
+                    <div style={{ fontSize: 13, color: "#D1D9E6", fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{authUser.name || "Игрок"}</div>
+                    <div style={{ fontSize: 10, color: "#6B7A8D", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{authUser.email || authUser.phone}</div>
+                  </div>
+                </div>
+                <div style={{ background: "rgba(212,160,23,0.08)", border: "1px solid rgba(212,160,23,0.2)", borderRadius: 10, padding: "10px 14px", marginBottom: 4 }}>
+                  <div style={{ fontSize: 10, color: "#6B7A8D", letterSpacing: "0.08em", marginBottom: 2 }}>БАЛАНС</div>
+                  <div className="font-display" style={{ fontSize: 20, color: "#F0C040", fontWeight: 500 }}>{balance.toLocaleString("ru-RU")} ₽</div>
+                </div>
               </div>
-              <div style={{ overflow: "hidden" }}>
-                <div style={{ fontSize: 13, color: "#D1D9E6", fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{authUser.name || "Игрок"}</div>
-                <div style={{ fontSize: 10, color: "#6B7A8D", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{authUser.email || authUser.phone}</div>
+            ) : (
+              <div style={{ margin: "12px 0" }}>
+                <button onClick={() => setShowAuthModal(true)} className="gold-btn" style={{ width: "100%", padding: "10px", border: "none", borderRadius: 10, cursor: "pointer", fontSize: 14, fontFamily: "Oswald, sans-serif", letterSpacing: "0.05em" }}>
+                  ВОЙТИ / РЕГИСТРАЦИЯ
+                </button>
+                <div style={{ background: "rgba(212,160,23,0.08)", border: "1px solid rgba(212,160,23,0.2)", borderRadius: 10, padding: "10px 14px", marginTop: 8 }}>
+                  <div style={{ fontSize: 10, color: "#6B7A8D", letterSpacing: "0.08em", marginBottom: 2 }}>ГОСТЕВОЙ БАЛАНС</div>
+                  <div className="font-display" style={{ fontSize: 20, color: "#F0C040", fontWeight: 500 }}>{balance.toLocaleString("ru-RU")} ₽</div>
+                </div>
               </div>
-            </div>
-            <div style={{ background: "rgba(212,160,23,0.08)", border: "1px solid rgba(212,160,23,0.2)", borderRadius: 10, padding: "10px 14px", marginBottom: 4 }}>
-              <div style={{ fontSize: 10, color: "#6B7A8D", letterSpacing: "0.08em", marginBottom: 2 }}>БАЛАНС</div>
-              <div className="font-display" style={{ fontSize: 20, color: "#F0C040", fontWeight: 500 }}>{balance.toLocaleString("ru-RU")} ₽</div>
-            </div>
-          </div>
-        ) : (
-          <div style={{ margin: "12px 0" }}>
-            <button onClick={() => setShowAuthModal(true)} className="gold-btn" style={{ width: "100%", padding: "10px", border: "none", borderRadius: 10, cursor: "pointer", fontSize: 14, fontFamily: "Oswald, sans-serif", letterSpacing: "0.05em" }}>
-              ВОЙТИ / РЕГИСТРАЦИЯ
-            </button>
-            <div style={{ background: "rgba(212,160,23,0.08)", border: "1px solid rgba(212,160,23,0.2)", borderRadius: 10, padding: "10px 14px", marginTop: 8 }}>
-              <div style={{ fontSize: 10, color: "#6B7A8D", letterSpacing: "0.08em", marginBottom: 2 }}>ГОСТЕВОЙ БАЛАНС</div>
-              <div className="font-display" style={{ fontSize: 20, color: "#F0C040", fontWeight: 500 }}>{balance.toLocaleString("ru-RU")} ₽</div>
-            </div>
-          </div>
+            )}
+          </>
         )}
 
-        <nav style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2, paddingBottom: 20 }}>
+        <nav style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2, paddingBottom: 20, paddingTop: sidebarOpen ? 0 : 12 }}>
           {navItems.map((item) => (
             <div
               key={item.id}
               className={`nav-item ${page === item.id ? "active" : ""}`}
               onClick={() => { setPage(item.id); setActiveGame(null); }}
+              title={!sidebarOpen ? item.label : undefined}
+              style={{ justifyContent: sidebarOpen ? undefined : "center", padding: sidebarOpen ? undefined : "10px 0" }}
             >
               <Icon name={item.icon} size={16} />
-              <span>{item.label}</span>
+              {sidebarOpen && <span>{item.label}</span>}
             </div>
           ))}
         </nav>
 
         <div style={{ padding: "16px 8px", borderTop: "1px solid #1C2532" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: authUser ? 8 : 0 }}>
-            <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#2ECC71" }} />
-            <span style={{ fontSize: 12, color: "#6B7A8D" }}>1 847 онлайн</span>
-          </div>
-          {authUser && (
-            <button onClick={handleLogout} style={{ width: "100%", background: "rgba(231,76,60,0.08)", border: "1px solid rgba(231,76,60,0.2)", borderRadius: 8, padding: "8px", cursor: "pointer", fontSize: 12, color: "#E74C3C", fontFamily: "Oswald, sans-serif", letterSpacing: "0.04em" }}>
-              ВЫЙТИ
-            </button>
+          {sidebarOpen ? (
+            <>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: authUser ? 8 : 0 }}>
+                <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#2ECC71", flexShrink: 0 }} />
+                <span style={{ fontSize: 12, color: "#6B7A8D" }}>1 847 онлайн</span>
+              </div>
+              {authUser && (
+                <button onClick={handleLogout} style={{ width: "100%", background: "rgba(231,76,60,0.08)", border: "1px solid rgba(231,76,60,0.2)", borderRadius: 8, padding: "8px", cursor: "pointer", fontSize: 12, color: "#E74C3C", fontFamily: "Oswald, sans-serif", letterSpacing: "0.04em" }}>
+                  ВЫЙТИ
+                </button>
+              )}
+            </>
+          ) : (
+            <div style={{ display: "flex", justifyContent: "center" }}>
+              <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#2ECC71" }} title="1 847 онлайн" />
+            </div>
           )}
         </div>
       </aside>
