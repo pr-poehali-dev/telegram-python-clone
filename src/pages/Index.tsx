@@ -1093,6 +1093,8 @@ export default function Index() {
   };
 
   const [activeTournament, setActiveTournament] = useState<number | null>(null);
+  const [gameSearch, setGameSearch] = useState("");
+  const [gameCategory, setGameCategory] = useState("Все");
   const [bonusFilter, setBonusFilter] = useState<"all" | "available" | "active" | "used">("all");
   const [activatedBonuses, setActivatedBonuses] = useState<number[]>([]);
   const [tgBonusStep, setTgBonusStep] = useState<"idle" | "waiting" | "claimed">("idle");
@@ -1261,28 +1263,75 @@ export default function Index() {
         {/* GAMES */}
         {page === "games" && (
           <div className="animate-fade-up">
-            <div style={{ marginBottom: 28 }}>
+            <div style={{ marginBottom: 20 }}>
               <h1 className="font-display" style={{ fontSize: 32, fontWeight: 500, color: "#fff" }}>ИГРЫ</h1>
               <p style={{ color: "#6B7A8D", marginTop: 6 }}>Выберите игру и испытайте удачу</p>
             </div>
 
             {!activeGame ? (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
-                {games.map((g) => (
-                  <div key={g.id} className="game-card" onClick={() => setActiveGame(g.name)}>
-                    <div style={{ height: 120, background: `linear-gradient(135deg, ${g.color}20, ${g.color}08)`, display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
-                      <Icon name={g.icon} size={44} style={{ color: g.color, opacity: 0.7 }} />
-                      {g.badge && (
-                        <span className={g.badge === "LIVE" ? "badge-live" : "badge-hot"} style={{ position: "absolute", top: 10, right: 10 }}>{g.badge}</span>
-                      )}
+              <>
+                {/* Search + categories */}
+                <div style={{ marginBottom: 16, position: "relative" }}>
+                  <Icon name="Search" size={15} style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "#6B7A8D", pointerEvents: "none" }} />
+                  <input
+                    value={gameSearch}
+                    onChange={e => setGameSearch(e.target.value)}
+                    placeholder="Поиск игры..."
+                    style={{ width: "100%", background: "#0D1117", border: "1px solid #1C2532", borderRadius: 10, padding: "11px 14px 11px 40px", color: "#fff", fontSize: 14, outline: "none", boxSizing: "border-box" }}
+                  />
+                  {gameSearch && (
+                    <button onClick={() => setGameSearch("")} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#6B7A8D", padding: 2 }}>
+                      <Icon name="X" size={14} />
+                    </button>
+                  )}
+                </div>
+
+                {/* Category tabs */}
+                <div style={{ display: "flex", gap: 6, marginBottom: 20, flexWrap: "wrap" }}>
+                  {["Все", "Стол", "Карты", "Слоты", "Краш", "Arcade", "Кости", "Лотерея", "Кейсы"].map(cat => (
+                    <button key={cat} onClick={() => setGameCategory(cat)} style={{
+                      background: gameCategory === cat ? "rgba(212,160,23,0.15)" : "#141B24",
+                      border: `1px solid ${gameCategory === cat ? "#D4A017" : "#1C2532"}`,
+                      borderRadius: 8, padding: "6px 14px",
+                      color: gameCategory === cat ? "#F0C040" : "#6B7A8D",
+                      fontSize: 12, cursor: "pointer", fontFamily: "Oswald, sans-serif",
+                      letterSpacing: "0.04em", transition: "all 0.15s"
+                    }}>{cat}</button>
+                  ))}
+                </div>
+
+                {(() => {
+                  const filtered = games.filter(g => {
+                    const matchSearch = g.name.toLowerCase().includes(gameSearch.toLowerCase());
+                    const matchCat = gameCategory === "Все" || g.category === gameCategory;
+                    return matchSearch && matchCat;
+                  });
+                  return filtered.length === 0 ? (
+                    <div style={{ textAlign: "center", padding: "60px 0", color: "#6B7A8D" }}>
+                      <div style={{ fontSize: 40, marginBottom: 12 }}>🔍</div>
+                      <div style={{ fontFamily: "Oswald, sans-serif", fontSize: 16, marginBottom: 6 }}>ИГРЫ НЕ НАЙДЕНЫ</div>
+                      <div style={{ fontSize: 13 }}>Попробуйте другой запрос</div>
                     </div>
-                    <div style={{ padding: "14px 16px" }}>
-                      <div style={{ fontWeight: 600, color: "#D1D9E6", fontSize: 15 }}>{g.name}</div>
-                      <div style={{ fontSize: 12, color: "#3D4D60", marginTop: 4 }}>{g.category} · {g.players.toLocaleString("ru-RU")} игроков</div>
+                  ) : (
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
+                      {filtered.map((g) => (
+                        <div key={g.id} className="game-card" onClick={() => setActiveGame(g.name)}>
+                          <div style={{ height: 120, background: `linear-gradient(135deg, ${g.color}20, ${g.color}08)`, display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
+                            <Icon name={g.icon} size={44} style={{ color: g.color, opacity: 0.7 }} />
+                            {g.badge && (
+                              <span className={g.badge === "LIVE" ? "badge-live" : "badge-hot"} style={{ position: "absolute", top: 10, right: 10 }}>{g.badge}</span>
+                            )}
+                          </div>
+                          <div style={{ padding: "14px 16px" }}>
+                            <div style={{ fontWeight: 600, color: "#D1D9E6", fontSize: 15 }}>{g.name}</div>
+                            <div style={{ fontSize: 12, color: "#3D4D60", marginTop: 4 }}>{g.category} · {g.players.toLocaleString("ru-RU")} игроков</div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  </div>
-                ))}
-              </div>
+                  );
+                })()}
+              </>
             ) : (
               <div>
                 <button onClick={() => setActiveGame(null)} style={{ background: "none", border: "none", color: "#6B7A8D", cursor: "pointer", fontSize: 14, marginBottom: 20, display: "flex", alignItems: "center", gap: 6 }}>
