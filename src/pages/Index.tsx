@@ -543,16 +543,16 @@ export default function Index() {
       headers: { "Content-Type": "application/json", "X-Session-Token": authToken },
       body: JSON.stringify({ action: "status" }),
     }).then(r => r.json());
-    setRouletteCanSpin(data.can_spin ?? false);
-    setRouletteTodayAmount(data.today_amount ?? null);
+    setDailyCanSpin(data.can_spin ?? false);
+    setDailyTodayAmount(data.today_amount ?? null);
   }
 
   async function spinDailyRoulette() {
     if (!authToken) { setShowAuthModal(true); return; }
-    if (rouletteSpinning || !rouletteCanSpin) return;
-    setRouletteSpinning(true);
+    if (dailySpinning || !dailyCanSpin) return;
+    setDailySpinning(true);
     const spinDeg = 1800 + Math.floor(Math.random() * 360);
-    setRouletteAngle(prev => prev + spinDeg);
+    setDailyAngle(prev => prev + spinDeg);
     setTimeout(async () => {
       const data = await fetch(ROULETTE_URL, {
         method: "POST",
@@ -560,12 +560,12 @@ export default function Index() {
         body: JSON.stringify({ action: "spin" }),
       }).then(r => r.json());
       if (data.amount) {
-        setRouletteResult(data.amount);
-        setRouletteCanSpin(false);
-        setRouletteTodayAmount(data.amount);
+        setDailyResult(data.amount);
+        setDailyCanSpin(false);
+        setDailyTodayAmount(data.amount);
         setBalance(Math.round(data.new_balance));
       }
-      setRouletteSpinning(false);
+      setDailySpinning(false);
     }, 3000);
   }
 
@@ -1215,12 +1215,12 @@ export default function Index() {
   const [tgBonusStep, setTgBonusStep] = useState<"idle" | "waiting" | "claimed">("idle");
 
   // Ежедневная рулетка
-  const [rouletteCanSpin, setRouletteCanSpin] = useState<boolean | null>(null);
-  const [rouletteTodayAmount, setRouletteTodayAmount] = useState<number | null>(null);
-  const [rouletteSpinning, setRouletteSpinning] = useState(false);
-  const [rouletteResult, setRouletteResult] = useState<number | null>(null);
-  const [rouletteSegments] = useState([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-  const [rouletteAngle, setRouletteAngle] = useState(0);
+  const [dailyCanSpin, setDailyCanSpin] = useState<boolean | null>(null);
+  const [dailyTodayAmount, setDailyTodayAmount] = useState<number | null>(null);
+  const [dailySpinning, setDailySpinning] = useState(false);
+  const [dailyResult, setDailyResult] = useState<number | null>(null);
+  const [dailySegments] = useState([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+  const [dailyAngle, setDailyAngle] = useState(0);
 
   const navItems: { id: Page; label: string; icon: string }[] = [
     { id: "home", label: "Главная", icon: "Home" },
@@ -3284,9 +3284,9 @@ export default function Index() {
                   <div style={{ color: "#D1D9E6", fontWeight: 600, fontSize: 15 }}>Ежедневная рулетка</div>
                   <div style={{ color: "#6B7A8D", fontSize: 12 }}>Крути раз в день — выиграй до 10 ₽</div>
                 </div>
-                {rouletteCanSpin === false && rouletteTodayAmount && (
+                {dailyCanSpin === false && dailyTodayAmount && (
                   <div style={{ marginLeft: "auto", background: "rgba(46,204,113,0.15)", border: "1px solid rgba(46,204,113,0.3)", borderRadius: 8, padding: "6px 14px", color: "#2ECC71", fontSize: 13, fontWeight: 600 }}>
-                    +{rouletteTodayAmount} ₽ сегодня
+                    +{dailyTodayAmount} ₽ сегодня
                   </div>
                 )}
               </div>
@@ -3297,8 +3297,8 @@ export default function Index() {
                   {/* Стрелка */}
                   <div style={{ position: "absolute", top: -12, left: "50%", transform: "translateX(-50%)", zIndex: 10, fontSize: 20 }}>▼</div>
                   {/* Колесо */}
-                  <svg width="200" height="200" viewBox="0 0 200 200" style={{ transform: `rotate(${rouletteAngle}deg)`, transition: rouletteSpinning ? "transform 3s cubic-bezier(0.17,0.67,0.12,0.99)" : "none" }}>
-                    {rouletteSegments.map((val, i) => {
+                  <svg width="200" height="200" viewBox="0 0 200 200" style={{ transform: `rotate(${dailyAngle}deg)`, transition: dailySpinning ? "transform 3s cubic-bezier(0.17,0.67,0.12,0.99)" : "none" }}>
+                    {dailySegments.map((val, i) => {
                       const angle = (360 / 10) * i;
                       const rad = (angle * Math.PI) / 180;
                       const radNext = ((angle + 36) * Math.PI) / 180;
@@ -3324,26 +3324,26 @@ export default function Index() {
                   </svg>
                 </div>
 
-                {rouletteResult && !rouletteCanSpin ? (
+                {dailyResult && !dailyCanSpin ? (
                   <div style={{ textAlign: "center" }}>
-                    <div style={{ fontSize: 28, fontWeight: 700, color: "#F0C040", fontFamily: "Oswald, sans-serif" }}>+{rouletteResult} ₽</div>
+                    <div style={{ fontSize: 28, fontWeight: 700, color: "#F0C040", fontFamily: "Oswald, sans-serif" }}>+{dailyResult} ₽</div>
                     <div style={{ color: "#6B7A8D", fontSize: 13, marginTop: 4 }}>Зачислено на баланс!</div>
                     <div style={{ color: "#3D4D60", fontSize: 12, marginTop: 8 }}>Следующий розыгрыш завтра</div>
                   </div>
-                ) : rouletteCanSpin === false && !rouletteResult ? (
+                ) : dailyCanSpin === false && !dailyResult ? (
                   <div style={{ textAlign: "center" }}>
                     <div style={{ color: "#6B7A8D", fontSize: 14 }}>Вы уже крутили сегодня</div>
-                    <div style={{ color: "#D4A017", fontSize: 20, fontWeight: 700, marginTop: 4 }}>+{rouletteTodayAmount} ₽</div>
+                    <div style={{ color: "#D4A017", fontSize: 20, fontWeight: 700, marginTop: 4 }}>+{dailyTodayAmount} ₽</div>
                     <div style={{ color: "#3D4D60", fontSize: 12, marginTop: 4 }}>Возвращайтесь завтра</div>
                   </div>
                 ) : (
                   <button
                     onClick={spinDailyRoulette}
-                    disabled={rouletteSpinning || rouletteCanSpin === false || !authUser}
+                    disabled={dailySpinning || dailyCanSpin === false || !authUser}
                     className="gold-btn"
-                    style={{ padding: "12px 36px", border: "none", borderRadius: 10, cursor: rouletteSpinning ? "not-allowed" : "pointer", fontSize: 14, fontFamily: "Oswald, sans-serif", letterSpacing: "0.06em", opacity: rouletteSpinning ? 0.7 : 1 }}
+                    style={{ padding: "12px 36px", border: "none", borderRadius: 10, cursor: dailySpinning ? "not-allowed" : "pointer", fontSize: 14, fontFamily: "Oswald, sans-serif", letterSpacing: "0.06em", opacity: dailySpinning ? 0.7 : 1 }}
                   >
-                    {!authUser ? "ВОЙДИТЕ ДЛЯ УЧАСТИЯ" : rouletteSpinning ? "КРУТИТСЯ..." : "КРУТИТЬ РУЛЕТКУ"}
+                    {!authUser ? "ВОЙДИТЕ ДЛЯ УЧАСТИЯ" : dailySpinning ? "КРУТИТСЯ..." : "КРУТИТЬ РУЛЕТКУ"}
                   </button>
                 )}
               </div>
