@@ -375,7 +375,7 @@ export default function Index() {
   ]);
   const [chatInput, setChatInput] = useState("");
   const [typing, setTyping] = useState(false);
-  const [balance, setBalance] = useState(12450);
+  const [balance, setBalance] = useState(0);
   const [slotResult, setSlotResult] = useState<string[]>(["🍋", "⭐", "🍒"]);
   const [slotSpinning, setSlotSpinning] = useState(false);
   const [rouletteNum, setRouletteNum] = useState<number | null>(null);

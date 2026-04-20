@@ -94,7 +94,7 @@ def handler(event: dict, context) -> dict:
 
             display_name = name or (email.split("@")[0] if email else phone)
             cur.execute(
-                "INSERT INTO users (email, phone, password_hash, name, balance) VALUES (%s, %s, %s, %s, 1000) RETURNING id",
+                "INSERT INTO users (email, phone, password_hash, name, balance) VALUES (%s, %s, %s, %s, 0) RETURNING id",
                 (email or None, phone or None, pw_hash, display_name)
             )
             user_id = cur.fetchone()[0]
@@ -103,7 +103,7 @@ def handler(event: dict, context) -> dict:
             conn.commit()
             cur.close()
 
-            return ok({"token": token_val, "user": {"id": user_id, "email": email, "phone": phone, "name": display_name, "balance": 1000.0}})
+            return ok({"token": token_val, "user": {"id": user_id, "email": email, "phone": phone, "name": display_name, "balance": 0.0}})
 
         # --- LOGIN ---
         if action == "login":
