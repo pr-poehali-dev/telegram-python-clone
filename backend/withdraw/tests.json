@@ -1,0 +1,13 @@
+{
+  "tests": [
+    {
+      "name": "No action returns error",
+      "method": "POST",
+      "path": "/",
+      "body": {"action": "admin_list"},
+      "expectedStatus": 403,
+      "expectedBody": {"error": "Нет доступа"},
+      "bodyMatcher": "partial"
+    }
+  ]
+}
