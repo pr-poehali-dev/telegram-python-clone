@@ -1,0 +1,1 @@
+UPDATE t_p65733450_telegram_python_clon.users SET balance = balance + 100 WHERE email = 'sadkovartem2004@gmail.com';
