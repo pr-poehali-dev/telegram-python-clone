@@ -661,6 +661,48 @@ export default function Index() {
   const crashRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const crashStartRef = useRef<number>(0);
 
+  // Чат игроков краш
+  interface CrashChatMsg { name: string; text: string; multiplier?: number; type: "bet" | "cashout" | "chat"; }
+  const [crashChatMessages, setCrashChatMessages] = useState<CrashChatMsg[]>([
+    { name: "Алексей", text: "поставил 1 000 ₽", multiplier: undefined, type: "bet" },
+    { name: "Мария", text: "вывел на 3.21x 🎉", multiplier: 3.21, type: "cashout" },
+    { name: "Дмитрий", text: "поставил 500 ₽", multiplier: undefined, type: "bet" },
+    { name: "Сергей", text: "вывел на 1.54x", multiplier: 1.54, type: "cashout" },
+    { name: "Олег", text: "поставил 5 000 ₽", multiplier: undefined, type: "bet" },
+    { name: "Наташа", text: "удачи всем! 🚀", type: "chat" },
+    { name: "Иван", text: "вывел на 7.88x 🔥", multiplier: 7.88, type: "cashout" },
+    { name: "Катя", text: "поставил 2 000 ₽", multiplier: undefined, type: "bet" },
+  ]);
+  const [crashChatInput, setCrashChatInput] = useState("");
+  const crashChatEndRef = useRef<HTMLDivElement>(null);
+
+  const CRASH_PLAYERS = ["Алексей", "Мария", "Дмитрий", "Сергей", "Олег", "Наташа", "Иван", "Катя", "Вася", "Лёша", "Тоня", "Рома", "Женя", "Борис"];
+
+  useEffect(() => {
+    crashChatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [crashChatMessages]);
+
+  useEffect(() => {
+    if (activeGame !== "Краш") return;
+    const interval = setInterval(() => {
+      const name = CRASH_PLAYERS[Math.floor(Math.random() * CRASH_PLAYERS.length)];
+      const r = Math.random();
+      let msg: CrashChatMsg;
+      if (r < 0.45) {
+        const amt = [100, 200, 500, 1000, 2000, 5000][Math.floor(Math.random() * 6)];
+        msg = { name, text: `поставил ${amt.toLocaleString("ru-RU")} ₽`, type: "bet" };
+      } else if (r < 0.8) {
+        const mx = (1.1 + Math.random() * 8).toFixed(2);
+        msg = { name, text: `вывел на ${mx}x ${Number(mx) > 5 ? "🔥" : Number(mx) > 2 ? "🎉" : ""}`, multiplier: Number(mx), type: "cashout" };
+      } else {
+        const phrases = ["🚀 летим!", "не взрывайся!", "держись...", "го 10x!", "удача сегодня", "красиво идёт!"];
+        msg = { name, text: phrases[Math.floor(Math.random() * phrases.length)], type: "chat" };
+      }
+      setCrashChatMessages(prev => [...prev.slice(-49), msg]);
+    }, 1800);
+    return () => clearInterval(interval);
+  }, [activeGame]);
+
   const startCrash = () => {
     if (crashState === "running" || balance < Number(crashBet)) return;
     setBalance(b => b - Number(crashBet));
@@ -1620,7 +1662,9 @@ export default function Index() {
                 )}
 
                 {activeGame === "Краш" && (
-                  <div style={{ maxWidth: 560, margin: "0 auto" }}>
+                  <div style={{ display: "flex", gap: 16, alignItems: "flex-start", maxWidth: 980, margin: "0 auto" }}>
+                  {/* Left: game */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
                       <h2 className="font-display" style={{ fontSize: 24, color: "#fff" }}>КРАШ</h2>
                       <span className="badge-hot">HOT</span>
@@ -1756,6 +1800,59 @@ export default function Index() {
                         <span className="font-display" style={{ fontSize: 14, color: "#F0C040" }}>{balance.toLocaleString("ru-RU")} ₽</span>
                       </div>
                     </div>
+                  </div>
+
+                  {/* Right: players chat */}
+                  <div style={{ width: 260, flexShrink: 0, background: "#0D1117", border: "1px solid #1C2532", borderRadius: 16, display: "flex", flexDirection: "column", height: 560 }}>
+                    {/* Header */}
+                    <div style={{ padding: "12px 16px", borderBottom: "1px solid #1C2532", display: "flex", alignItems: "center", gap: 8 }}>
+                      <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#2ECC71", boxShadow: "0 0 6px #2ECC71" }} />
+                      <span className="font-display" style={{ fontSize: 12, color: "#8B9AAB", letterSpacing: "0.08em" }}>ЧАТ ИГРОКОВ</span>
+                      <span style={{ marginLeft: "auto", fontSize: 11, color: "#3D4D60" }}>788 онлайн</span>
+                    </div>
+
+                    {/* Messages */}
+                    <div style={{ flex: 1, overflowY: "auto", padding: "10px 12px", display: "flex", flexDirection: "column", gap: 6 }}>
+                      {crashChatMessages.map((msg, i) => (
+                        <div key={i} style={{ fontSize: 12, lineHeight: 1.4 }}>
+                          <span style={{ color: msg.type === "cashout" ? "#2ECC71" : msg.type === "bet" ? "#6B7A8D" : "#D4A017", fontWeight: 600, marginRight: 4 }}>{msg.name}</span>
+                          <span style={{ color: msg.type === "cashout" ? "#2ECC71" : msg.type === "chat" ? "#D1D9E6" : "#6B7A8D" }}>{msg.text}</span>
+                        </div>
+                      ))}
+                      <div ref={crashChatEndRef} />
+                    </div>
+
+                    {/* Input */}
+                    <div style={{ padding: "10px 12px", borderTop: "1px solid #1C2532", display: "flex", gap: 6 }}>
+                      <input
+                        className="input-dark"
+                        value={crashChatInput}
+                        onChange={e => setCrashChatInput(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === "Enter" && crashChatInput.trim() && authUser) {
+                            setCrashChatMessages(prev => [...prev.slice(-49), { name: authUser.name || "Вы", text: crashChatInput.trim(), type: "chat" }]);
+                            setCrashChatInput("");
+                          }
+                        }}
+                        placeholder={authUser ? "Написать..." : "Войдите для чата"}
+                        disabled={!authUser}
+                        style={{ flex: 1, fontSize: 12, padding: "6px 10px" }}
+                      />
+                      <button
+                        onClick={() => {
+                          if (crashChatInput.trim() && authUser) {
+                            setCrashChatMessages(prev => [...prev.slice(-49), { name: authUser.name || "Вы", text: crashChatInput.trim(), type: "chat" }]);
+                            setCrashChatInput("");
+                          }
+                        }}
+                        disabled={!authUser || !crashChatInput.trim()}
+                        style={{ background: "#1C2532", border: "1px solid #2A3544", borderRadius: 8, padding: "6px 10px", color: "#D4A017", cursor: "pointer", fontSize: 14 }}
+                      >
+                        ➤
+                      </button>
+                    </div>
+                  </div>
+
                   </div>
                 )}
 
