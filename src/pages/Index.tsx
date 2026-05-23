@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import Icon from "@/components/ui/icon";
 import BlackjackGame from "@/components/games/BlackjackGame";
+import EggCatcherGame from "@/components/games/EggCatcherGame";
 import AuthModal from "@/components/AuthModal";
 
 const AUTH_URL = "https://functions.poehali.dev/65956f1f-d89a-4964-bb46-54584865fac0";
@@ -52,6 +53,7 @@ const games = [
   { id: 13, name: "Лесенка", category: "Карты", icon: "Stairs", badge: "NEW", color: "#F97316", players: 214 },
   { id: 14, name: "Монетка", category: "Arcade", icon: "CircleDollarSign", badge: "HOT", color: "#EAB308", players: 519 },
   { id: 15, name: "Плинко", category: "Arcade", icon: "Layers", badge: "NEW", color: "#8B5CF6", players: 387 },
+  { id: 16, name: "Egg Catcher", category: "Arcade", icon: "ShoppingBasket", badge: "NEW", color: "#EAB308", players: 142 },
 ];
 
 interface CaseItem {
@@ -3177,7 +3179,14 @@ export default function Index() {
                   </div>
                 )}
 
-                {!["Слоты: Удача", "Слоты: Космос", "Рулетка", "Краш", "Кейсы", "Дайс", "Кено", "Хило", "Мины", "Лесенка", "Монетка", "Плинко"].includes(activeGame) && (
+                {activeGame === "Egg Catcher" && (
+                  <EggCatcherGame
+                    balance={balance}
+                    onBalanceChange={(delta) => setBalanceAndSync((b) => b + delta)}
+                  />
+                )}
+
+                {!["Слоты: Удача", "Слоты: Космос", "Рулетка", "Краш", "Кейсы", "Дайс", "Кено", "Хило", "Мины", "Лесенка", "Монетка", "Плинко", "Egg Catcher"].includes(activeGame) && (
                   <div style={{ maxWidth: 420, margin: "0 auto", textAlign: "center" }}>
                     <h2 className="font-display" style={{ fontSize: 24, color: "#fff", marginBottom: 8 }}>{activeGame.toUpperCase()}</h2>
                     <div style={{ background: "#0D1117", border: "1px solid #1C2532", borderRadius: 16, padding: "60px 24px" }}>
