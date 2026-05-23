@@ -3,6 +3,7 @@ import Icon from "@/components/ui/icon";
 import BlackjackGame from "@/components/games/BlackjackGame";
 import EggCatcherGame from "@/components/games/EggCatcherGame";
 import StarWarsSlot from "@/components/games/StarWarsSlot";
+import UFOSheepDefender from "@/components/games/UFOSheepDefender";
 import AuthModal from "@/components/AuthModal";
 
 const AUTH_URL = "https://functions.poehali.dev/65956f1f-d89a-4964-bb46-54584865fac0";
@@ -56,6 +57,7 @@ const games = [
   { id: 15, name: "Плинко", category: "Arcade", icon: "Layers", badge: "NEW", color: "#8B5CF6", players: 387 },
   { id: 16, name: "Egg Catcher", category: "Arcade", icon: "ShoppingBasket", badge: "NEW", color: "#EAB308", players: 142 },
   { id: 17, name: "Star Wars", category: "Слоты", icon: "Sword", badge: "NEW", color: "#FFE81F", players: 301 },
+  { id: 18, name: "UFO Sheep Defender", category: "Arcade", icon: "Zap", badge: "NEW", color: "#00FF88", players: 87 },
 ];
 
 interface CaseItem {
@@ -3195,7 +3197,14 @@ export default function Index() {
                   />
                 )}
 
-                {!["Слоты: Удача", "Слоты: Космос", "Рулетка", "Краш", "Кейсы", "Дайс", "Кено", "Хило", "Мины", "Лесенка", "Монетка", "Плинко", "Egg Catcher", "Star Wars"].includes(activeGame) && (
+                {activeGame === "UFO Sheep Defender" && (
+                  <UFOSheepDefender
+                    balance={balance}
+                    onBalanceChange={(delta) => setBalanceAndSync((b) => b + delta)}
+                  />
+                )}
+
+                {!["Слоты: Удача", "Слоты: Космос", "Рулетка", "Краш", "Кейсы", "Дайс", "Кено", "Хило", "Мины", "Лесенка", "Монетка", "Плинко", "Egg Catcher", "Star Wars", "UFO Sheep Defender"].includes(activeGame) && (
                   <div style={{ maxWidth: 420, margin: "0 auto", textAlign: "center" }}>
                     <h2 className="font-display" style={{ fontSize: 24, color: "#fff", marginBottom: 8 }}>{activeGame.toUpperCase()}</h2>
                     <div style={{ background: "#0D1117", border: "1px solid #1C2532", borderRadius: 16, padding: "60px 24px" }}>
