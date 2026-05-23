@@ -9,6 +9,7 @@ import SharpShooter from "@/components/games/SharpShooter";
 import ChristmasBonus from "@/components/games/ChristmasBonus";
 import PirateChest from "@/components/games/PirateChest";
 import SecretCase from "@/components/games/SecretCase";
+import IslandGame from "@/components/games/IslandGame";
 import AuthModal from "@/components/AuthModal";
 
 const AUTH_URL = "https://functions.poehali.dev/65956f1f-d89a-4964-bb46-54584865fac0";
@@ -68,6 +69,7 @@ const games = [
   { id: 21, name: "Christmas Bonus", category: "Слоты", icon: "Gift", badge: "NEW", color: "#34D399", players: 342 },
   { id: 22, name: "Pirate Chest", category: "Приключение", icon: "Anchor", badge: "NEW", color: "#F97316", players: 178 },
   { id: 23, name: "Secret Case", category: "Детектив", icon: "Briefcase", badge: "NEW", color: "#A78BFA", players: 214 },
+  { id: 24, name: "Island", category: "Приключение", icon: "Palmtree", badge: "NEW", color: "#34D399", players: 193 },
 ];
 
 interface CaseItem {
@@ -3249,7 +3251,14 @@ export default function Index() {
                   />
                 )}
 
-                {!["Слоты: Удача", "Слоты: Космос", "Рулетка", "Краш", "Кейсы", "Дайс", "Кено", "Хило", "Мины", "Лесенка", "Монетка", "Плинко", "Egg Catcher", "Star Wars", "UFO Sheep Defender", "Crown & Anchor", "Sharp Shooter", "Christmas Bonus", "Pirate Chest", "Secret Case"].includes(activeGame) && (
+                {activeGame === "Island" && (
+                  <IslandGame
+                    balance={balance}
+                    onBalanceChange={(delta) => setBalanceAndSync((b) => b + delta)}
+                  />
+                )}
+
+                {!["Слоты: Удача", "Слоты: Космос", "Рулетка", "Краш", "Кейсы", "Дайс", "Кено", "Хило", "Мины", "Лесенка", "Монетка", "Плинко", "Egg Catcher", "Star Wars", "UFO Sheep Defender", "Crown & Anchor", "Sharp Shooter", "Christmas Bonus", "Pirate Chest", "Secret Case", "Island"].includes(activeGame) && (
                   <div style={{ maxWidth: 420, margin: "0 auto", textAlign: "center" }}>
                     <h2 className="font-display" style={{ fontSize: 24, color: "#fff", marginBottom: 8 }}>{activeGame.toUpperCase()}</h2>
                     <div style={{ background: "#0D1117", border: "1px solid #1C2532", borderRadius: 16, padding: "60px 24px" }}>
