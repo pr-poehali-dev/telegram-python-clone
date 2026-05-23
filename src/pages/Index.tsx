@@ -12,6 +12,7 @@ import SecretCase from "@/components/games/SecretCase";
 import IslandGame from "@/components/games/IslandGame";
 import BattleRoyale from "@/components/games/BattleRoyale";
 import RussianRoulette from "@/components/games/RussianRoulette";
+import SuperMario from "@/components/games/SuperMario";
 import AuthModal from "@/components/AuthModal";
 
 const AUTH_URL = "https://functions.poehali.dev/65956f1f-d89a-4964-bb46-54584865fac0";
@@ -74,6 +75,7 @@ const games = [
   { id: 24, name: "Island", category: "Приключение", icon: "Palmtree", badge: "NEW", color: "#34D399", players: 193 },
   { id: 25, name: "Battle Royale", category: "Экшен", icon: "Crosshair", badge: "NEW", color: "#EF4444", players: 487 },
   { id: 26, name: "Russian Roulette", category: "Экстрим", icon: "Target", badge: "HOT", color: "#DC2626", players: 631 },
+  { id: 27, name: "Super Mario", category: "Аркада", icon: "Gamepad2", badge: "NEW", color: "#E52B0C", players: 512 },
 ];
 
 interface CaseItem {
@@ -3276,7 +3278,14 @@ export default function Index() {
                   />
                 )}
 
-                {!["Слоты: Удача", "Слоты: Космос", "Рулетка", "Краш", "Кейсы", "Дайс", "Кено", "Хило", "Мины", "Лесенка", "Монетка", "Плинко", "Egg Catcher", "Star Wars", "UFO Sheep Defender", "Crown & Anchor", "Sharp Shooter", "Christmas Bonus", "Pirate Chest", "Secret Case", "Island", "Battle Royale", "Russian Roulette"].includes(activeGame) && (
+                {activeGame === "Super Mario" && (
+                  <SuperMario
+                    balance={balance}
+                    onBalanceChange={(delta) => setBalanceAndSync((b) => b + delta)}
+                  />
+                )}
+
+                {!["Слоты: Удача", "Слоты: Космос", "Рулетка", "Краш", "Кейсы", "Дайс", "Кено", "Хило", "Мины", "Лесенка", "Монетка", "Плинко", "Egg Catcher", "Star Wars", "UFO Sheep Defender", "Crown & Anchor", "Sharp Shooter", "Christmas Bonus", "Pirate Chest", "Secret Case", "Island", "Battle Royale", "Russian Roulette", "Super Mario"].includes(activeGame) && (
                   <div style={{ maxWidth: 420, margin: "0 auto", textAlign: "center" }}>
                     <h2 className="font-display" style={{ fontSize: 24, color: "#fff", marginBottom: 8 }}>{activeGame.toUpperCase()}</h2>
                     <div style={{ background: "#0D1117", border: "1px solid #1C2532", borderRadius: 16, padding: "60px 24px" }}>
